@@ -1,0 +1,30 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Home from './pages/Home';
+import ClothingInventory from './pages/ClothingInventory';
+import OutfitAnalyzer from './pages/OutfitAnalyzer';
+import CapsuleRecommendations from './pages/CapsuleRecommendations';
+import './styles/App.css';
+
+function App() {
+  return (
+    <Router>
+      <div className="app">
+        <Header />
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/inventory" element={<ClothingInventory />} />
+            <Route path="/analyzer" element={<OutfitAnalyzer />} />
+            <Route path="/capsule" element={<CapsuleRecommendations />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
+    </Router>
+  );
+}
+
+export default App;
