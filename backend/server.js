@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./config/database');
+const authRoutes = require('./routes/authRoutes');
+const authenticateToken = require('./middleware/authMiddleware');
 
 const app = express();
 
@@ -26,6 +28,10 @@ const initializeDatabase = async () => {
     `);
 
     await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_clothing_items_user_id ON clothing_items(user_id);  
+    `)
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS outfit_compatibility (
         id SERIAL PRIMARY KEY,
         item1_id INTEGER REFERENCES clothing_items(id) ON DELETE CASCADE,
@@ -38,11 +44,48 @@ const initializeDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS capsule_recommendations (
         id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         items JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Create trigger to auto-update updated_at
+    await pool.query(`
+      DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+      CREATE TRIGGER update_users_updated_at
+        BEFORE UPDATE ON users
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    `);
+
+    
 
     console.log('Database tables initialized');
   } catch (error) {
@@ -53,6 +96,9 @@ const initializeDatabase = async () => {
 initializeDatabase();
 
 // Routes
+
+// Authentication routes (public)
+app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -66,7 +112,7 @@ app.get('/api/health', (req, res) => {
 // Clothing Items endpoints
 app.get('/api/clothing', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM clothing_items ORDER BY created_at DESC');
+    const result = await pool.query('SELECT * FROM clothing_items ORDER BY created_at DESC',[req.user.id]);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching clothing items:', error);
@@ -84,7 +130,7 @@ app.post('/api/clothing', async (req, res) => {
   try {
     const result = await pool.query(
       'INSERT INTO clothing_items (name, category, color, formality, season, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [name, category, color, formality, season, notes || null]
+      [req.user.id, name, category, color, formality, season, notes || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -96,7 +142,7 @@ app.post('/api/clothing', async (req, res) => {
 app.get('/api/clothing/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM clothing_items WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM clothing_items WHERE id = $1', [id, req.user.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
@@ -110,7 +156,7 @@ app.get('/api/clothing/:id', async (req, res) => {
 app.delete('/api/clothing/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('DELETE FROM clothing_items WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query('DELETE FROM clothing_items WHERE id = $1 RETURNING *', [id, req.user.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
@@ -127,7 +173,7 @@ app.post('/api/analyze/compatibility', async (req, res) => {
   
   try {
     let query = 'SELECT * FROM clothing_items WHERE 1=1';
-    const params = [];
+    const params = [req.user.id];
 
     if (formality && formality !== 'all') {
       query += ' AND formality = $' + (params.length + 1);
@@ -176,7 +222,7 @@ app.post('/api/analyze/compatibility', async (req, res) => {
 // Item Utilization metrics
 app.get('/api/analyze/utilization', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM clothing_items');
+    const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1', [req.user.id]);
     const items = result.rows;
 
     const utilization = items.map(item => ({
@@ -198,7 +244,7 @@ app.post('/api/capsule/recommendations', async (req, res) => {
   const { desiredSize, lifestyle, climate, budget } = req.body;
   
   try {
-    const result = await pool.query('SELECT * FROM clothing_items ORDER BY RANDOM() LIMIT $1', [desiredSize || 20]);
+    const result = await pool.query('SELECT * FROM clothing_items ORDER BY RANDOM() LIMIT $1', [req.user.id, desiredSize || 20]);
     const items = result.rows;
 
     const itemsByCategory = {};

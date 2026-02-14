@@ -23,7 +23,7 @@ function Home() {
   return (
     <div className="home">
       <section className="hero">
-        <h2>👔 Wardrobe Capsule Optimizer</h2>
+        <h2>👔 Restyle</h2>
         <p>Understand and optimize how your clothing items work together as a system</p>
         <p className="hero-subtitle">Reduce decision fatigue, maximize outfit variety, and make intentional wardrobe choices</p>
         <Link to="/inventory" className="btn btn-primary btn-large">Start Building Your Wardrobe</Link>

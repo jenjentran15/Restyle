@@ -1,0 +1,239 @@
+/* Auth page wrapper */
+.auth-wrapper {
+  min-height: 100vh;
+}
+
+/* Header override for auth page */
+.auth-wrapper .header {
+  width: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem 0;
+}
+
+.auth-wrapper .header .container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 2rem;
+}
+
+.auth-wrapper .header .logo {
+  color: white;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Auth page background */
+.auth-page {
+  min-height: calc(100vh - 200px);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 2rem 0;
+}
+
+.auth-container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+  padding: 2rem 0;
+}
+
+.auth-card {
+  background: white;
+  padding: 3rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+  max-width: 450px;
+  width: 100%;
+  border: 2px solid #f0f0f0;
+}
+
+.auth-form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.auth-form-header h2 {
+  font-size: 1.8rem;
+  color: #2c3e50;
+  margin: 1rem 0 0.5rem 0;
+  font-weight: 700;
+}
+
+.auth-form-header p {
+  color: #666;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.form-group input {
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid #c33;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f0f0f0;
+}
+
+.auth-footer p {
+  color: #666;
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.toggle-link {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
+}
+
+.toggle-link:hover:not(:disabled) {
+  color: #764ba2;
+}
+
+.toggle-link:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.demo-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid #f0f0f0;
+  text-align: center;
+}
+
+.demo-text {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0 0 1rem 0;
+}
+
+.auth-benefits {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+  max-width: 350px;
+  width: 100%;
+  border: 2px solid #f0f0f0;
+}
+
+.auth-benefits h3 {
+  font-size: 1.5rem;
+  color: #2c3e50;
+  margin: 0 0 1.5rem 0;
+  font-weight: 700;
+}
+
+.auth-benefits ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-benefits li {
+  padding: 1rem;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  border-left: 4px solid #667eea;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #2c3e50;
+  line-height: 1.6;
+}
+
+/* Responsive Design */
+@media (max-width: 968px) {
+  .auth-container {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .auth-container {
+    gap: 2rem;
+    padding: 1rem 0;
+  }
+  .auth-card {
+    padding: 2rem;
+  }
+  .auth-form-header h2 {
+    font-size: 1.5rem;
+  }
+  .auth-benefits {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card, .auth-benefits {
+    padding: 1.5rem;
+  }
+  .auth-form-header h2 {
+    font-size: 1.3rem;
+  }
+}
