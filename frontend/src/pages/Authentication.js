@@ -6,6 +6,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function Authentication() {
   const navigate = useNavigate();
+
   const [accData, setAccData] = useState({
     name: '',
     password: '',
@@ -106,7 +107,7 @@ function Authentication() {
 
               {!isLogin && (
                 <div className="form-group">
-                  <label htmlFor="name">Full Name</label>
+                  <label htmlFor="name">Username</label>
                   <input
                     type="text"
                     id="name"

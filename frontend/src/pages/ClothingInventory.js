@@ -6,6 +6,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 function ClothingInventory() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [newItem, setNewItem] = useState({
     name: '',
     category: 'top',
@@ -21,12 +22,32 @@ function ClothingInventory() {
 
   const fetchClothingItems = async () => {
     setLoading(true);
+    setError(null);
+
     try {
+      console.log('Fetching from:', `${API_URL}/api/clothing`)
       const response = await fetch(`${API_URL}/api/clothing`);
+
+      if(!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      setItems(data || []);
+      console.log('Received data:', data);
+
+      if(Array.isArray(data)) {
+        setItems(data);
+      } else if (data && Array.isArray(data.items)) {
+        setItems(data.items);
+      } else {
+        console.error('Unexpected data format:', data);
+        setItems([]);
+        setError('Received invalid data format from server');
+      }
     } catch (error) {
       console.error('Error fetching clothing items:', error);
+      setError(error.message);
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -87,6 +108,18 @@ function ClothingInventory() {
       <div className="container">
         <h2>👕 My Wardrobe Inventory</h2>
         
+        {error && (
+          <div className="error-banner" style={{
+            background: '#fee',
+            color: '#c33',
+            padding: '1rem',
+            borderRadius: '8px',
+            marginBottom: '1rem'
+          }}>
+            Error: {error}
+          </div>
+        )}
+
         <div className="add-item-section">
           <h3>Add New Clothing Item</h3>
           <form onSubmit={handleAddItem} className="add-item-form">
