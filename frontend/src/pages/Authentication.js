@@ -22,8 +22,8 @@ function Authentication() {
     setError('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (e) => { //async allows await and e stands for event
+    e.preventDefault(); //This stops the form from refreshing the page.
     setError('');
     setLoading(true);
 
@@ -44,16 +44,13 @@ function Authentication() {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json',},
         body: JSON.stringify({
           email: accData.email,
           password: accData.password,
           name: accData.name
         }),
       });
-
       const data = await response.json();
 
       if (response.ok) {

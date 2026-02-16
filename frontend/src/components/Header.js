@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import '../styles/Header.css';
 
-const Header = ({ onLogout, isAuthenticated }) => {
+const Header = ({ onLogout }) => {
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem('token')
+  );
+
   const [greeting, setGreeting] = useState('Good morning');
   const [timeClass, setTimeClass] = useState('morning');
 
@@ -31,6 +36,13 @@ const Header = ({ onLogout, isAuthenticated }) => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    if (onLogout) onLogout();
+    navigate('/login');
+  };
+
   return (
     <header className={`header ${timeClass}`}>
       <div className="container">
@@ -43,8 +55,9 @@ const Header = ({ onLogout, isAuthenticated }) => {
           <Link to="/inventory">Inventory</Link>
           <Link to="/analyzer">Analyzer</Link>
           <Link to="/capsule">Capsule</Link>
+          {!isAuthenticated && <Link to="/login">Sign in</Link>}
           {isAuthenticated && (
-            <button onClick={onLogout} className="logout-btn">
+            <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>
           )}
