@@ -15,8 +15,24 @@ app.use(express.json());
 const initializeDatabase = async () => {
   try {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS clothing_items (
         id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         category VARCHAR(50) NOT NULL,
         color VARCHAR(100) NOT NULL,
@@ -69,24 +85,6 @@ const initializeDatabase = async () => {
         FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
     `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    `);
-
-    
-
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -110,9 +108,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Clothing Items endpoints
-app.get('/api/clothing', async (req, res) => {
+app.get('/api/clothing', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM clothing_items ORDER BY created_at DESC',[req.user.id]);
+    const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1 ORDER BY created_at DESC',[req.user.id]);
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching clothing items:', error);
@@ -120,7 +118,7 @@ app.get('/api/clothing', async (req, res) => {
   }
 });
 
-app.post('/api/clothing', async (req, res) => {
+app.post('/api/clothing', authenticateToken, async (req, res) => {
   const { name, category, color, formality, season, notes } = req.body;
   
   if (!name || !category || !color) {
@@ -129,7 +127,7 @@ app.post('/api/clothing', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'INSERT INTO clothing_items (name, category, color, formality, season, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
       [req.user.id, name, category, color, formality, season, notes || null]
     );
     res.status(201).json(result.rows[0]);
@@ -139,10 +137,10 @@ app.post('/api/clothing', async (req, res) => {
   }
 });
 
-app.get('/api/clothing/:id', async (req, res) => {
+app.get('/api/clothing/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM clothing_items WHERE id = $1', [id, req.user.id]);
+    const result = await pool.query('SELECT * FROM clothing_items WHERE id = $1 AND user_id = $2', [id, req.user.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
@@ -153,10 +151,10 @@ app.get('/api/clothing/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/clothing/:id', async (req, res) => {
+app.delete('/api/clothing/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('DELETE FROM clothing_items WHERE id = $1 RETURNING *', [id, req.user.id]);
+    const result = await pool.query('DELETE FROM clothing_items WHERE id = $1 AND user_id = $2 RETURNING *', [id, req.user.id]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
@@ -168,11 +166,11 @@ app.delete('/api/clothing/:id', async (req, res) => {
 });
 
 // Outfit Compatibility Analysis
-app.post('/api/analyze/compatibility', async (req, res) => {
+app.post('/api/analyze/compatibility', authenticateToken, async (req, res) => {
   const { formality, season } = req.body;
   
   try {
-    let query = 'SELECT * FROM clothing_items WHERE 1=1';
+    let query = 'SELECT * FROM clothing_items WHERE user_id = $1';
     const params = [req.user.id];
 
     if (formality && formality !== 'all') {
@@ -220,7 +218,7 @@ app.post('/api/analyze/compatibility', async (req, res) => {
 });
 
 // Item Utilization metrics
-app.get('/api/analyze/utilization', async (req, res) => {
+app.get('/api/analyze/utilization', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1', [req.user.id]);
     const items = result.rows;
@@ -240,11 +238,11 @@ app.get('/api/analyze/utilization', async (req, res) => {
 });
 
 // Capsule Wardrobe Recommendations
-app.post('/api/capsule/recommendations', async (req, res) => {
+app.post('/api/capsule/recommendations', authenticateToken, async (req, res) => {
   const { desiredSize, lifestyle, climate, budget } = req.body;
   
   try {
-    const result = await pool.query('SELECT * FROM clothing_items ORDER BY RANDOM() LIMIT $1', [req.user.id, desiredSize || 20]);
+    const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1 ORDER BY RANDOM() LIMIT $2', [req.user.id, desiredSize || 20]);
     const items = result.rows;
 
     const itemsByCategory = {};

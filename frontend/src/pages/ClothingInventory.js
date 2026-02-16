@@ -26,7 +26,13 @@ function ClothingInventory() {
 
     try {
       console.log('Fetching from:', `${API_URL}/api/clothing`)
-      const response = await fetch(`${API_URL}/api/clothing`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/api/clothing`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
 
       if(!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -64,11 +70,12 @@ function ClothingInventory() {
       alert('Please fill in all required fields');
       return;
     }
-
+    
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/clothing`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(newItem)
       });
 
