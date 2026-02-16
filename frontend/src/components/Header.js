@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import './Header.css';
+import '../styles/Header.css';
 
 const Header = ({ onLogout, isAuthenticated }) => {
   const [greeting, setGreeting] = useState('Good morning');
