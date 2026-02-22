@@ -115,8 +115,8 @@ function VirtualTryOn() {
               />
             </div>
 
-            <button className="btn btn-secondary" onClick={fetchWardrobe}>
-              Load Wardrobe Items
+            <button className="btn btn-secondary" onClick={fetchWardrobe} disabled={loading}>
+              {loading ? 'Loading...' : 'Load Wardrobe Items'}
             </button>
           </div>
 
