@@ -13,7 +13,7 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.10.0",
-    "three": "^0.151.3"
+    "three": "^0.159.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.16.0",
