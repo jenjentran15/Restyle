@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from engine import WardrobeAnalysisEngine
+from image_processor import ImageProcessor
 import os
 from dotenv import load_dotenv
 
@@ -10,6 +11,7 @@ app = Flask(__name__)
 CORS(app)
 
 engine = WardrobeAnalysisEngine()
+image_processor = ImageProcessor()
 
 @app.route('/api/analyze/outfit-combinations', methods=['POST'])
 def analyze_outfit_combinations():
@@ -46,6 +48,75 @@ def get_recommendations():
         analysis = request.json.get('analysis', {})
         result = engine.get_ai_recommendations(clothing_items, analysis)
         return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/remove-background', methods=['POST'])
+def remove_background():
+    """
+    Remove background from clothing image
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        image_file = request.files['image']
+        image_data = image_file.read()
+        
+        result = image_processor.remove_background(image_data)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/analyze-clothing-color', methods=['POST'])
+def analyze_clothing_color():
+    """
+    Analyze dominant colors in clothing image
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        image_file = request.files['image']
+        image_data = image_file.read()
+        
+        # Save temporarily for OpenCV processing
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+            tmp.write(image_data)
+            tmp_path = tmp.name
+        
+        try:
+            result = image_processor.analyze_clothing_color(tmp_path)
+            return jsonify(result)
+        finally:
+            os.unlink(tmp_path)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/process-image', methods=['POST'])
+def process_image():
+    """
+    Complete image processing pipeline
+    """
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image provided'}), 400
+        
+        image_file = request.files['image']
+        image_data = image_file.read()
+        
+        # Remove background
+        result = image_processor.remove_background(image_data)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'processedImage': result['processedImage'],
+                'filename': image_file.filename
+            })
+        else:
+            return jsonify({'error': result['error']}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

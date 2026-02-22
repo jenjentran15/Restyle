@@ -1,0 +1,369 @@
+.upload-clothes-page {
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  min-height: 100vh;
+}
+
+.upload-clothes-page .container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.upload-clothes-page h2 {
+  text-align: center;
+  color: white;
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.upload-clothes-page .subtitle {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1em;
+  margin-bottom: 40px;
+}
+
+.upload-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.upload-form,
+.uploaded-items-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.upload-form h3,
+.uploaded-items-section h3 {
+  font-size: 1.5em;
+  margin-bottom: 25px;
+  color: #333;
+  border-bottom: 3px solid #f5576c;
+  padding-bottom: 10px;
+}
+
+.file-upload-area {
+  border: 3px dashed #f5576c;
+  border-radius: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #fafafa;
+  margin-bottom: 20px;
+}
+
+.file-upload-area:hover {
+  border-color: #f093fb;
+  background: #fff5fa;
+  transform: scale(1.02);
+}
+
+.file-upload-area.dragover {
+  border-color: #f093fb;
+  background: #fff5fa;
+  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+}
+
+.file-upload-area input[type="file"] {
+  display: none;
+}
+
+.upload-icon {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.file-upload-area p {
+  color: #666;
+  font-size: 1em;
+  margin: 0;
+}
+
+.file-upload-area .hint {
+  font-size: 0.9em;
+  color: #999;
+  margin-top: 5px;
+}
+
+.preview-section {
+  margin-bottom: 20px;
+}
+
+.preview-images {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.preview-image {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: #f0f0f0;
+  border: 2px solid #e0e0e0;
+}
+
+.preview-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.preview-image .remove-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(245, 87, 108, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.preview-image:hover .remove-btn {
+  opacity: 1;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1em;
+  transition: border-color 0.3s;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #f5576c;
+  box-shadow: 0 0 0 3px rgba(245, 87, 108, 0.1);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #333;
+  border: 2px solid #f5576c;
+}
+
+.btn-secondary:hover {
+  background: #f5576c;
+  color: white;
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #f5576c;
+  font-weight: 600;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f5576c;
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-message {
+  background: #ffe6e6;
+  color: #d32f2f;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border-left: 4px solid #d32f2f;
+}
+
+.success-message {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border-left: 4px solid #2e7d32;
+}
+
+.uploaded-items {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+}
+
+.uploaded-item {
+  background: #f9f9f9;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s;
+}
+
+.uploaded-item:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.item-image {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  background: #f0f0f0;
+}
+
+.item-details {
+  padding: 12px;
+  font-size: 0.9em;
+}
+
+.item-type {
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  color: #f5576c;
+}
+
+.item-info {
+  color: #666;
+  margin: 3px 0;
+}
+
+.item-info strong {
+  color: #333;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.empty-state-icon {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.empty-state p {
+  font-size: 1.1em;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .upload-clothes-page {
+    padding: 20px 10px;
+  }
+
+  .upload-clothes-page h2 {
+    font-size: 1.8em;
+  }
+
+  .upload-section {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid,
+  .button-group {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-images,
+  .uploaded-items {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-form,
+  .uploaded-items-section {
+    padding: 20px;
+  }
+}
