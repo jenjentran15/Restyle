@@ -3,8 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
-const axios = require('axios');
-const FormData = require('form-data');
+// axios/FormData removed — Python engine and remote processing disabled
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -346,38 +345,7 @@ app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
 });
 
 // Background Removal Endpoint
-app.post('/api/remove-background', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No image file provided' });
-    }
-
-    // Send image to Python service for background removal
-    const pythonURL = process.env.PYTHON_ENGINE_URL || 'http://localhost:5001';
-    
-    const formData = new FormData();
-    formData.append('image', req.file.buffer, req.file.originalname);
-
-    try {
-      const response = await axios.post(`${pythonURL}/api/remove-background`, formData, {
-        headers: formData.getHeaders(),
-        timeout: 30000
-      });
-
-      res.json({
-        success: true,
-        processedImage: response.data.processedImage,
-        message: 'Background removed successfully'
-      });
-    } catch (pythonError) {
-      console.error('Python service error:', pythonError.message);
-      res.status(500).json({ error: 'Failed to process image with Python service' });
-    }
-  } catch (error) {
-    console.error('Error removing background:', error);
-    res.status(500).json({ error: 'Failed to remove background' });
-  }
-});
+// Background removal endpoint removed. Image processing now handled locally via /api/upload-clothing.
 
 // Get uploaded wardrobe
 app.get('/api/wardrobe', async (req, res) => {
