@@ -55,8 +55,7 @@ const Header = ({ onLogout }) => {
           <Link to="/inventory">Inventory</Link>
           <Link to="/analyzer">Analyzer</Link>
           <Link to="/capsule">Capsule</Link>
-          <Link to="/upload-clothes">Upload</Link>
-          <Link to="/virtual-tryon">Try-On</Link>
+          {/* Upload and Try-On links removed */}
           {!isAuthenticated && <Link to="/login">Sign in</Link>}
           {isAuthenticated && (
             <button onClick={handleLogout} className="logout-btn">
