@@ -1,15 +1,18 @@
+/**
+ * Restyle Wardrobe Optimizer - Backend Server
+ * Simple Express server for managing wardrobe items and outfits
+ */
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
-// axios/FormData removed — Python engine and remote processing disabled
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
+
 const pool = require('./config/database');
-const authRoutes = require('./routes/authRoutes');
-const authenticateToken = require('./middleware/authMiddleware');
 
 const app = express();
 
@@ -114,12 +117,11 @@ const initializeDatabase = async () => {
 
 initializeDatabase();
 
-// Routes
+// ============================================
+// API Routes
+// ============================================
 
-// Authentication routes (public)
-app.use('/api/auth', authRoutes);
-
-// Health check
+// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -399,8 +401,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Start server
+// ============================================
+// Start Server
+// ============================================
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Wardrobe Optimizer Backend running on port ${PORT}`);
+  console.log(`\n✓ Restyle Backend running at http://localhost:${PORT}\n`);
 });

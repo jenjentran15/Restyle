@@ -6,8 +6,7 @@ import Home from './pages/Home';
 import ClothingInventory from './pages/ClothingInventory';
 import OutfitAnalyzer from './pages/OutfitAnalyzer';
 import CapsuleRecommendations from './pages/CapsuleRecommendations';
-// UploadClothes and VirtualTryOn removed during cleanup
-import Authentication from './pages/Authentication'
+import Authentication from './pages/Authentication';
 import './styles/App.css';
 
 function AppContent() {
@@ -23,7 +22,6 @@ function AppContent() {
           <Route path="/inventory" element={<ClothingInventory />} />
           <Route path="/analyzer" element={<OutfitAnalyzer />} />
           <Route path="/capsule" element={<CapsuleRecommendations />} />
-          {/* Upload and Virtual Try-On routes removed */}
           <Route path="/login" element={<Authentication />} />
         </Routes>
       </main>

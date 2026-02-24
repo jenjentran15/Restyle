@@ -11,6 +11,12 @@ node_modules/
 /dist
 .next
 out/
+frontend/build/
+backend/dist/
+
+# Uploaded files
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
 
 # Misc
 .DS_Store
@@ -22,6 +28,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 .pnpm-debug.log*
+package-lock.json
 
 # Editor directories and files
 .idea
