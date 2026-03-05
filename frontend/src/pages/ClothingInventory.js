@@ -1,3 +1,6 @@
+/* ClothingInventory.js - page for viewing and managing wardrobe items.
+ * Fetches from /api/clothing and allows add/delete operations.
+ */
 import React, { useState, useEffect } from 'react';
 import '../styles/ClothingInventory.css';
 
@@ -20,6 +23,7 @@ function ClothingInventory() {
     fetchClothingItems();
   }, []);
 
+  // fetch the current wardrobe items from the backend API
   const fetchClothingItems = async () => {
     setLoading(true);
     setError(null);
@@ -59,11 +63,13 @@ function ClothingInventory() {
     }
   };
 
+  // update newItem state when the user edits the form fields
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setNewItem({ ...newItem, [name]: value });
   };
 
+  // send a POST request to add a new clothing item
   const handleAddItem = async (e) => {
     e.preventDefault();
     if (!newItem.name || !newItem.color) {
@@ -97,6 +103,7 @@ function ClothingInventory() {
     }
   };
 
+  // delete an item by id after user confirmation
   const handleDeleteItem = async (id) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
       try {

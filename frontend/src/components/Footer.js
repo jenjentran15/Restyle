@@ -1,3 +1,4 @@
+/* Footer.js - simple footer with copyright and links. */
 import React from 'react';
 import '../styles/Footer.css';
 

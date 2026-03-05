@@ -1,3 +1,6 @@
+/* App.js - root React component that sets up routing and overall layout.
+ * It renders Header and Footer, and uses react-router-dom to switch pages.
+ */
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Header from './components/Header';

@@ -1,6 +1,21 @@
 /**
  * Restyle Wardrobe Optimizer - Backend Server
- * Simple Express server for managing wardrobe items and outfits
+ * --------------------------------------------
+ * Minimal Express API used by the React front‑end.  This file:
+ *   • sets up middleware and database connections
+ *   • defines routes for clothing items, analysis, uploads, and more
+ *   • initializes Postgres tables on startup
+ *   • handles errors and starts the listener
+ *
+ * Sections below are delineated with comments and include:
+ *   1. imports & configuration
+ *   2. multer upload setup
+ *   3. database schema initialization
+ *   4. API route handlers
+ *   5. utility/helper middlewares
+ *   6. error handling & server start
+ *
+ * (Earlier versions contained auth and a Python engine; remnants remain.)
  */
 
 const express = require('express');

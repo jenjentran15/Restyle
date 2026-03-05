@@ -1,3 +1,4 @@
+/* Authentication.js - login/signup form with client-side validation. */
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/Authentication.css';
@@ -17,11 +18,13 @@ function Authentication() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // update account form state whenever an input changes
   const handleChange = (e) => {
     setAccData({...accData, [e.target.name]: e.target.value});
     setError('');
   };
 
+  // submit login or signup form data to the server
   const handleSubmit = async (e) => { //async allows await and e stands for event
     e.preventDefault(); //This stops the form from refreshing the page.
     setError('');

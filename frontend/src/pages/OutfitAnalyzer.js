@@ -1,3 +1,6 @@
+/* OutfitAnalyzer.js - page that sends filter options to backend
+ * and displays compatibility analysis results.
+ */
 import React, { useState } from 'react';
 import '../styles/OutfitAnalyzer.css';
 
@@ -11,6 +14,7 @@ function OutfitAnalyzer() {
     season: 'all'
   });
 
+  // call API to perform compatibility analysis with selected filters
   const handleAnalyze = async () => {
     setLoading(true);
     try {
@@ -30,6 +34,7 @@ function OutfitAnalyzer() {
     }
   };
 
+  // update filter values when user changes dropdowns
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setSelectedFilters({ ...selectedFilters, [name]: value });

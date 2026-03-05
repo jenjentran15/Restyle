@@ -1,3 +1,4 @@
+/* App.css - global layout styles for the React application */
 .app {
   display: flex;
   flex-direction: column;

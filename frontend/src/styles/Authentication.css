@@ -1,3 +1,6 @@
+/* Authentication.css - styles for login/signup pages and overrides.
+ * Contains header modifications and form layout rules.
+ */
 /* Auth page wrapper */
 .auth-wrapper {
   min-height: 100vh;

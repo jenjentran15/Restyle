@@ -1,3 +1,4 @@
+/* Header.js - site navigation bar with time-based greeting and links. */
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/Header.css';
@@ -36,6 +37,7 @@ const Header = ({ onLogout }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // clear auth token and navigate to login page
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);

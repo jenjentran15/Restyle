@@ -1,3 +1,7 @@
+/* database.js - exports a PostgreSQL connection pool used by the backend.
+ * The pool configuration is driven from environment variables and
+ * includes simple logging for connect/error events.
+ */
 const { Pool } = require('pg');
 require('dotenv').config();
 

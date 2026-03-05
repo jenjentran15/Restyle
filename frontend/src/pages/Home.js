@@ -1,3 +1,4 @@
+/* Home.js - landing page with overview of features and status check. */
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/Home.css';

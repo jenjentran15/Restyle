@@ -1,3 +1,6 @@
+/* CapsuleRecommendations.js - page that requests capsule wardrobe
+ * suggestions and displays the results.
+ */
 import React, { useState } from 'react';
 import '../styles/CapsuleRecommendations.css';
 
@@ -13,11 +16,13 @@ function CapsuleRecommendations() {
     climate: 'temperate'
   });
 
+  // handle changes to the preference form inputs
   const handlePreferenceChange = (e) => {
     const { name, value } = e.target;
     setPreferences({ ...preferences, [name]: value });
   };
 
+  // request capsule suggestions from backend based on preferences
   const handleGenerateRecommendations = async () => {
     setLoading(true);
     try {
