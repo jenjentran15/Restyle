@@ -1,5 +1,6 @@
 /* ClothingInventory.js - page for viewing and managing wardrobe items.
  * Fetches from /api/clothing and allows add/delete operations.
+ * Supports both manual item entry and image upload.
  */
 import React, { useState, useEffect } from 'react';
 import '../styles/ClothingInventory.css';
@@ -16,36 +17,37 @@ function ClothingInventory() {
     color: '',
     formality: 'casual',
     season: 'all',
-    notes: ''
+    notes: '',
+    image: null
   });
 
   useEffect(() => {
     fetchClothingItems();
   }, []);
 
-  // fetch the current wardrobe items from the backend API
+  // Fetch the current wardrobe items from the backend API
   const fetchClothingItems = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log('Fetching from:', `${API_URL}/api/clothing`)
+      console.log('Fetching from:', `${API_URL}/api/clothing`);
       const token = localStorage.getItem('token');
+
       const response = await fetch(`${API_URL}/api/clothing`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-
-      if(!response.ok) {
+      if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       console.log('Received data:', data);
 
-      if(Array.isArray(data)) {
+      if (Array.isArray(data)) {
         setItems(data);
       } else if (data && Array.isArray(data.items)) {
         setItems(data.items);
@@ -63,53 +65,114 @@ function ClothingInventory() {
     }
   };
 
-  // update newItem state when the user edits the form fields
+  // Update newItem state when the user edits form fields
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewItem({ ...newItem, [name]: value });
+    setNewItem((prev) => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  // send a POST request to add a new clothing item
+  // Handle file input changes
+  const handleFileChange = (e) => {
+    const file = e.target.files[0] || null;
+    setNewItem((prev) => ({
+      ...prev,
+      image: file
+    }));
+  };
+
+  // Send a POST request to add a new clothing item
   const handleAddItem = async (e) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.color) {
+
+    if (!newItem.name || !newItem.color || !newItem.category) {
       alert('Please fill in all required fields');
       return;
     }
-    
+
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_URL}/api/clothing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(newItem)
+      let response;
+
+      if (newItem.image) {
+        const formData = new FormData();
+        formData.append('image', newItem.image);
+        formData.append('name', newItem.name);
+        formData.append('category', newItem.category);
+        formData.append('color', newItem.color);
+        formData.append('formality', newItem.formality);
+        formData.append('season', newItem.season);
+        formData.append('notes', newItem.notes);
+
+        response = await fetch(`${API_URL}/api/upload-clothing`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: formData
+        });
+      } else {
+        response = await fetch(`${API_URL}/api/clothing`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: newItem.name,
+            category: newItem.category,
+            color: newItem.color,
+            formality: newItem.formality,
+            season: newItem.season,
+            notes: newItem.notes
+          })
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      setNewItem({
+        name: '',
+        category: 'top',
+        color: '',
+        formality: 'casual',
+        season: 'all',
+        notes: '',
+        image: null
       });
 
-      if (response.ok) {
-        setNewItem({
-          name: '',
-          category: 'top',
-          color: '',
-          formality: 'casual',
-          season: 'all',
-          notes: ''
-        });
-        fetchClothingItems();
-        alert('Clothing item added successfully!');
+      // Clear file input manually
+      const fileInput = document.getElementById('item-image-input');
+      if (fileInput) {
+        fileInput.value = '';
       }
+
+      fetchClothingItems();
+      alert('Clothing item added successfully!');
     } catch (error) {
       console.error('Error adding clothing item:', error);
-      alert('Failed to add clothing item');
+      alert(`Failed to add clothing item: ${error.message}`);
     }
   };
 
-  // delete an item by id after user confirmation
+  // Delete an item by id after user confirmation
   const handleDeleteItem = async (id) => {
     if (window.confirm('Are you sure you want to remove this item?')) {
       try {
+        const token = localStorage.getItem('token');
+
         await fetch(`${API_URL}/api/clothing/${id}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         });
+
         fetchClothingItems();
       } catch (error) {
         console.error('Error deleting item:', error);
@@ -121,15 +184,18 @@ function ClothingInventory() {
     <div className="inventory-page">
       <div className="container">
         <h2>👕 My Wardrobe Inventory</h2>
-        
+
         {error && (
-          <div className="error-banner" style={{
-            background: '#fee',
-            color: '#c33',
-            padding: '1rem',
-            borderRadius: '8px',
-            marginBottom: '1rem'
-          }}>
+          <div
+            className="error-banner"
+            style={{
+              background: '#fee',
+              color: '#c33',
+              padding: '1rem',
+              borderRadius: '8px',
+              marginBottom: '1rem'
+            }}
+          >
             Error: {error}
           </div>
         )}
@@ -149,10 +215,24 @@ function ClothingInventory() {
               />
             </div>
 
+            <div className="form-group">
+              <label>Item Image</label>
+              <input
+                id="item-image-input"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+            </div>
+
             <div className="form-row">
               <div className="form-group">
                 <label>Category *</label>
-                <select name="category" value={newItem.category} onChange={handleInputChange}>
+                <select
+                  name="category"
+                  value={newItem.category}
+                  onChange={handleInputChange}
+                >
                   <option value="top">Top</option>
                   <option value="bottom">Bottom</option>
                   <option value="dress">Dress</option>
@@ -178,7 +258,11 @@ function ClothingInventory() {
             <div className="form-row">
               <div className="form-group">
                 <label>Formality Level</label>
-                <select name="formality" value={newItem.formality} onChange={handleInputChange}>
+                <select
+                  name="formality"
+                  value={newItem.formality}
+                  onChange={handleInputChange}
+                >
                   <option value="casual">Casual</option>
                   <option value="business">Business</option>
                   <option value="formal">Formal</option>
@@ -188,7 +272,11 @@ function ClothingInventory() {
 
               <div className="form-group">
                 <label>Season</label>
-                <select name="season" value={newItem.season} onChange={handleInputChange}>
+                <select
+                  name="season"
+                  value={newItem.season}
+                  onChange={handleInputChange}
+                >
                   <option value="all">All Seasons</option>
                   <option value="spring">Spring</option>
                   <option value="summer">Summer</option>
@@ -209,7 +297,9 @@ function ClothingInventory() {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary">Add Item</button>
+            <button type="submit" className="btn btn-primary">
+              Add Item
+            </button>
           </form>
         </div>
 
@@ -218,10 +308,12 @@ function ClothingInventory() {
           {loading ? (
             <p>Loading your wardrobe...</p>
           ) : items.length === 0 ? (
-            <p className="empty-state">No items in your wardrobe yet. Add your first item above!</p>
+            <p className="empty-state">
+              No items in your wardrobe yet. Add your first item above!
+            </p>
           ) : (
             <div className="items-grid">
-              {items.map(item => (
+              {items.map((item) => (
                 <div key={item.id} className="item-card">
                   <div className="item-header">
                     <h4>{item.name}</h4>
@@ -233,6 +325,23 @@ function ClothingInventory() {
                       ✕
                     </button>
                   </div>
+
+                  {item.image_url && (
+                    <div className="item-image">
+                      <img
+                        src={`${API_URL}${item.image_url}`}
+                        alt={item.name}
+                        style={{
+                          width: '100%',
+                          maxHeight: '220px',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                          marginBottom: '1rem'
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <div className="item-details">
                     <p><strong>Category:</strong> {item.category}</p>
                     <p><strong>Color:</strong> <span className="color-tag">{item.color}</span></p>
