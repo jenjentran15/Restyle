@@ -25,6 +25,7 @@ const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const { beamSearchGenerateOutfits } = require('./outfitGenerator');
 require('dotenv').config();
 
 const pool = require('./config/database');
@@ -48,6 +49,14 @@ const upload = multer({
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+
+// Temporary auth middleware (development only)
+const authenticateToken = (req, res, next) => {
+  // Simulate logged-in user
+  req.user = { id: 1 };
+  next();
+};
 
 // Initialize database tables
 const initializeDatabase = async () => {
@@ -313,6 +322,34 @@ app.post('/api/capsule/recommendations', authenticateToken, async (req, res) => 
   }
 });
 
+app.post('/api/outfits/generate', authenticateToken, async (req, res) => {
+  try {
+    const { formality = 'all', season = 'all', beamWidth = 5 } = req.body;
+
+    const result = await pool.query(
+      'SELECT * FROM clothing_items WHERE user_id = $1',
+      [req.user.id]
+    );
+
+    const items = result.rows;
+
+    const outfits = beamSearchGenerateOutfits(items, {
+      formality,
+      season,
+      beamWidth
+    });
+
+    res.json({
+      totalItems: items.length,
+      totalOutfitsGenerated: outfits.length,
+      outfits
+    });
+  } catch (error) {
+    console.error('Error generating outfits:', error);
+    res.status(500).json({ error: 'Failed to generate outfits' });
+  }
+});
+
 // Image Upload Endpoint
 app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
   try {
@@ -320,34 +357,64 @@ app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const { type, color, brand, size } = req.body;
-    if (!type || !color) {
-      return res.status(400).json({ error: 'Missing required fields: type, color' });
+    const {
+      name,
+      category,
+      color,
+      formality,
+      season,
+      brand,
+      size,
+      notes
+    } = req.body;
+
+    if (!category || !color) {
+      return res.status(400).json({
+        error: 'Missing required fields: category, color'
+      });
     }
 
-    // Generate unique filename
     const filename = `${uuidv4()}-${Date.now()}.jpg`;
     const imagePath = `/uploads/${filename}`;
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
 
-    // Process image with Sharp
-    await sharp(req.file.buffer)
-      .resize(400, 500, { fit: 'cover', position: 'center' })
-      .jpeg({ quality: 80 })
-      .toFile(`${__dirname}/public/uploads/${filename}`);
-
-    // Store clothing item in database
-    let user_id = 1; // Default user_id for now (user-based during auth)
-    try {
-      if (req.user && req.user.id) {
-        user_id = req.user.id;
-      }
-    } catch (e) {
-      // Continue with default user_id
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
+    await sharp(req.file.buffer)
+      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 90 })
+      .toFile(path.join(uploadsDir, filename));
+
+    let user_id = 1;
+    if (req.user && req.user.id) {
+      user_id = req.user.id;
+    }
+
+    const combinedNotes = [
+      brand ? `Brand: ${brand}` : null,
+      size ? `Size: ${size}` : null,
+      notes ? notes : null
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
     const result = await pool.query(
-      'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [user_id, brand || 'Unknown', type, color, 'casual', 'all-seasons', size || 'M', imagePath]
+      `INSERT INTO clothing_items
+       (user_id, name, category, color, formality, season, notes, image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [
+        user_id,
+        name || brand || 'Unnamed Item',
+        category,
+        color,
+        formality || 'casual',
+        season || 'all',
+        combinedNotes || null,
+        imagePath
+      ]
     );
 
     res.status(201).json({
