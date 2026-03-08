@@ -25,10 +25,10 @@ const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
-const { beamSearchGenerateOutfits } = require('./outfitGenerator');
 require('dotenv').config();
 
 const pool = require('./config/database');
+const { beamSearchGenerateOutfits } = require('./outfitGenerator');
 
 const app = express();
 
@@ -49,14 +49,6 @@ const upload = multer({
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
-
-// Temporary auth middleware (development only)
-const authenticateToken = (req, res, next) => {
-  // Simulate logged-in user
-  req.user = { id: 1 };
-  next();
-};
 
 // Initialize database tables
 const initializeDatabase = async () => {
@@ -133,6 +125,44 @@ const initializeDatabase = async () => {
         FOR EACH ROW
         EXECUTE FUNCTION update_updated_at_column();
     `);
+
+    // Insert sample user for testing
+    const existingUser = await pool.query('SELECT id FROM users WHERE id = 1');
+    if (existingUser.rows.length === 0) {
+      const hashedPassword = await bcrypt.hash('password123', 10); // Simple test password
+      await pool.query(
+        'INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)',
+        [1, 'Test User', 'test@example.com', hashedPassword]
+      );
+      console.log('Sample user inserted for testing');
+    }
+
+    // Insert sample data for testing outfit generator
+    const sampleItems = [
+      { name: 'Blue Jeans', category: 'bottom', color: 'blue', formality: 'casual', season: 'all' },
+      { name: 'White T-Shirt', category: 'top', color: 'white', formality: 'casual', season: 'all' },
+      { name: 'Black Sneakers', category: 'shoes', color: 'black', formality: 'casual', season: 'all' },
+      { name: 'Gray Hoodie', category: 'top', color: 'gray', formality: 'casual', season: 'all' },
+      { name: 'Khaki Pants', category: 'bottom', color: 'beige', formality: 'business', season: 'all' },
+      { name: 'White Button-Up Shirt', category: 'top', color: 'white', formality: 'business', season: 'all' },
+      { name: 'Brown Loafers', category: 'shoes', color: 'brown', formality: 'business', season: 'all' },
+      { name: 'Black Dress Pants', category: 'bottom', color: 'black', formality: 'formal', season: 'all' },
+      { name: 'Navy Blazer', category: 'jacket', color: 'navy', formality: 'business', season: 'all' },
+      { name: 'Red Summer Dress', category: 'dress', color: 'red', formality: 'casual', season: 'summer' }
+    ];
+
+    // Check if sample data already exists
+    const existingItems = await pool.query('SELECT COUNT(*) FROM clothing_items WHERE user_id = 1');
+    if (parseInt(existingItems.rows[0].count) === 0) {
+      for (const item of sampleItems) {
+        await pool.query(
+          'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [1, item.name, item.category, item.color, item.formality, item.season, 'Sample item for testing']
+        );
+      }
+      console.log('Sample clothing items inserted for testing');
+    }
+
     console.log('Database tables initialized');
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -322,34 +352,6 @@ app.post('/api/capsule/recommendations', authenticateToken, async (req, res) => 
   }
 });
 
-app.post('/api/outfits/generate', authenticateToken, async (req, res) => {
-  try {
-    const { formality = 'all', season = 'all', beamWidth = 5 } = req.body;
-
-    const result = await pool.query(
-      'SELECT * FROM clothing_items WHERE user_id = $1',
-      [req.user.id]
-    );
-
-    const items = result.rows;
-
-    const outfits = beamSearchGenerateOutfits(items, {
-      formality,
-      season,
-      beamWidth
-    });
-
-    res.json({
-      totalItems: items.length,
-      totalOutfitsGenerated: outfits.length,
-      outfits
-    });
-  } catch (error) {
-    console.error('Error generating outfits:', error);
-    res.status(500).json({ error: 'Failed to generate outfits' });
-  }
-});
-
 // Image Upload Endpoint
 app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
   try {
@@ -357,64 +359,34 @@ app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const {
-      name,
-      category,
-      color,
-      formality,
-      season,
-      brand,
-      size,
-      notes
-    } = req.body;
-
-    if (!category || !color) {
-      return res.status(400).json({
-        error: 'Missing required fields: category, color'
-      });
+    const { type, color, brand, size } = req.body;
+    if (!type || !color) {
+      return res.status(400).json({ error: 'Missing required fields: type, color' });
     }
 
+    // Generate unique filename
     const filename = `${uuidv4()}-${Date.now()}.jpg`;
     const imagePath = `/uploads/${filename}`;
-    const uploadsDir = path.join(__dirname, 'public', 'uploads');
 
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
+    // Process image with Sharp
     await sharp(req.file.buffer)
-      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 90 })
-      .toFile(path.join(uploadsDir, filename));
+      .resize(400, 500, { fit: 'cover', position: 'center' })
+      .jpeg({ quality: 80 })
+      .toFile(`${__dirname}/public/uploads/${filename}`);
 
-    let user_id = 1;
-    if (req.user && req.user.id) {
-      user_id = req.user.id;
+    // Store clothing item in database
+    let user_id = 1; // Default user_id for now (user-based during auth)
+    try {
+      if (req.user && req.user.id) {
+        user_id = req.user.id;
+      }
+    } catch (e) {
+      // Continue with default user_id
     }
-
-    const combinedNotes = [
-      brand ? `Brand: ${brand}` : null,
-      size ? `Size: ${size}` : null,
-      notes ? notes : null
-    ]
-      .filter(Boolean)
-      .join(' | ');
 
     const result = await pool.query(
-      `INSERT INTO clothing_items
-       (user_id, name, category, color, formality, season, notes, image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        user_id,
-        name || brand || 'Unnamed Item',
-        category,
-        color,
-        formality || 'casual',
-        season || 'all',
-        combinedNotes || null,
-        imagePath
-      ]
+      'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [user_id, brand || 'Unknown', type, color, 'casual', 'all-seasons', size || 'M', imagePath]
     );
 
     res.status(201).json({
@@ -474,6 +446,44 @@ app.post('/api/save-outfit', async (req, res) => {
   } catch (error) {
     console.error('Error saving outfit:', error);
     res.status(500).json({ error: 'Failed to save outfit' });
+  }
+});
+
+// Generate outfit suggestions using beam search
+app.post('/api/outfits/generate', async (req, res) => {
+  try {
+    const { formality = 'all', season = 'all', beamWidth = 5 } = req.body;
+
+    let user_id = 1; // Default user_id
+    try {
+      if (req.user && req.user.id) {
+        user_id = req.user.id;
+      }
+    } catch (e) {
+      // Continue with default user_id
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM clothing_items WHERE user_id = $1',
+      [user_id]
+    );
+
+    const items = result.rows;
+
+    const outfits = beamSearchGenerateOutfits(items, {
+      formality,
+      season,
+      beamWidth
+    });
+
+    res.json({
+      totalItems: items.length,
+      totalOutfitsGenerated: outfits.length,
+      outfits
+    });
+  } catch (error) {
+    console.error('Error generating outfits:', error);
+    res.status(500).json({ error: 'Failed to generate outfits' });
   }
 });
 

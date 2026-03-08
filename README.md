@@ -6,6 +6,7 @@ A simple, clean wardrobe management application built with React and Node.js. Ma
 
 - **Wardrobe Inventory** - Track clothing items by category, color, and season
 - **Outfit Analysis** - See how items work together
+- **AI Outfit Generation** - Use beam search to create outfit combinations
 - **Capsule Recommendations** - Get suggestions for a minimal wardrobe
 - **Image Upload** - Add photos of your clothing items
 
@@ -13,6 +14,32 @@ A simple, clean wardrobe management application built with React and Node.js. Ma
 
 **Frontend:** React 18, React Router, Axios, CSS3  
 **Backend:** Node.js, Express, PostgreSQL, Sharp (image processing)
+
+## Quick Start
+
+### 1. Setup Database
+The app includes sample data for testing. When you start the backend, it will automatically create tables and insert sample clothing items.
+
+### 2. Start the Application
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+npm install
+npm run dev
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd frontend
+npm install
+npm start
+```
+
+### 3. Test the Outfit Generator
+- Go to the Inventory page
+- You'll see 10 sample clothing items
+- Click "Generate Outfits" to see AI-generated combinations
 
 ## Prerequisites
 

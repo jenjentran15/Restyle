@@ -32,10 +32,76 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.add-item-section h3 {
-  font-size: 1.5rem;
+.generate-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.generate-section h3 {
+  margin-bottom: 10px;
   color: #2c3e50;
+}
+
+.generate-section p {
+  margin-bottom: 15px;
+  color: #555;
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.outfits-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.outfits-section h3 {
   margin-bottom: 20px;
+  color: #2c3e50;
+}
+
+.outfit-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  background: #f9f9f9;
+}
+
+.outfit-card h4 {
+  margin-bottom: 10px;
+  color: #34495e;
+}
+
+.outfit-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.outfit-item {
+  background: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #eee;
+  font-size: 0.9em;
+}
+
+.sample-note {
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 15px;
+  font-style: italic;
 }
 
 .add-item-form {
