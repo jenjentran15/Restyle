@@ -1,21 +1,11 @@
 /**
  * Restyle Wardrobe Optimizer - Backend Server
- * --------------------------------------------
- * Minimal Express API used by the React front‑end.  This file:
- *   • sets up middleware and database connections
- *   • defines routes for clothing items, analysis, uploads, and more
- *   • initializes Postgres tables on startup
- *   • handles errors and starts the listener
- *
- * Sections below are delineated with comments and include:
- *   1. imports & configuration
- *   2. multer upload setup
- *   3. database schema initialization
- *   4. API route handlers
- *   5. utility/helper middlewares
- *   6. error handling & server start
- *
- * (Earlier versions contained auth and a Python engine; remnants remain.)
+ * Cleaned MVP backend for:
+ * - Home
+ * - Wardrobe
+ * - Outfit Generator
+ * - Outfit Preview
+ * - Login / Signup (frontend only for now)
  */
 
 const express = require('express');
@@ -31,26 +21,38 @@ const pool = require('./config/database');
 const { beamSearchGenerateOutfits } = require('./outfitGenerator');
 
 const app = express();
+const PORT = process.env.PORT || 5000;
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
 
-// Configure multer for file uploads
-const storage = multer.memoryStorage();
+// Ensure uploads directory exists once on startup
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Temporary auth middleware for development
+const authenticateToken = (req, res, next) => {
+  req.user = { id: 1 };
+  next();
+};
+
+// Multer config for image uploads
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'));
+      return cb(null, true);
     }
+    cb(new Error('Only image files are allowed'));
   }
 });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(uploadsDir));
 
-// Initialize database tables
+// Initialize only the tables currently needed
 const initializeDatabase = async () => {
   try {
     await pool.query(`
@@ -75,8 +77,8 @@ const initializeDatabase = async () => {
         name VARCHAR(255) NOT NULL,
         category VARCHAR(50) NOT NULL,
         color VARCHAR(100) NOT NULL,
-        formality VARCHAR(50) NOT NULL,
-        season VARCHAR(50) NOT NULL,
+        formality VARCHAR(50) DEFAULT 'casual',
+        season VARCHAR(50) DEFAULT 'all',
         notes TEXT,
         image_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -84,27 +86,8 @@ const initializeDatabase = async () => {
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_clothing_items_user_id ON clothing_items(user_id);  
-    `)
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS outfit_compatibility (
-        id SERIAL PRIMARY KEY,
-        item1_id INTEGER REFERENCES clothing_items(id) ON DELETE CASCADE,
-        item2_id INTEGER REFERENCES clothing_items(id) ON DELETE CASCADE,
-        compatibility_score FLOAT DEFAULT 1.0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS capsule_recommendations (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        name VARCHAR(255) NOT NULL,
-        items JSONB,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
+      CREATE INDEX IF NOT EXISTS idx_clothing_items_user_id
+      ON clothing_items(user_id);
     `);
 
     await pool.query(`
@@ -117,51 +100,13 @@ const initializeDatabase = async () => {
       $$ LANGUAGE plpgsql;
     `);
 
-    // Create trigger to auto-update updated_at
     await pool.query(`
       DROP TRIGGER IF EXISTS update_users_updated_at ON users;
       CREATE TRIGGER update_users_updated_at
-        BEFORE UPDATE ON users
-        FOR EACH ROW
-        EXECUTE FUNCTION update_updated_at_column();
+      BEFORE UPDATE ON users
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
     `);
-
-    // Insert sample user for testing
-    const existingUser = await pool.query('SELECT id FROM users WHERE id = 1');
-    if (existingUser.rows.length === 0) {
-      const hashedPassword = await bcrypt.hash('password123', 10); // Simple test password
-      await pool.query(
-        'INSERT INTO users (id, name, email, password) VALUES ($1, $2, $3, $4)',
-        [1, 'Test User', 'test@example.com', hashedPassword]
-      );
-      console.log('Sample user inserted for testing');
-    }
-
-    // Insert sample data for testing outfit generator
-    const sampleItems = [
-      { name: 'Blue Jeans', category: 'bottom', color: 'blue', formality: 'casual', season: 'all' },
-      { name: 'White T-Shirt', category: 'top', color: 'white', formality: 'casual', season: 'all' },
-      { name: 'Black Sneakers', category: 'shoes', color: 'black', formality: 'casual', season: 'all' },
-      { name: 'Gray Hoodie', category: 'top', color: 'gray', formality: 'casual', season: 'all' },
-      { name: 'Khaki Pants', category: 'bottom', color: 'beige', formality: 'business', season: 'all' },
-      { name: 'White Button-Up Shirt', category: 'top', color: 'white', formality: 'business', season: 'all' },
-      { name: 'Brown Loafers', category: 'shoes', color: 'brown', formality: 'business', season: 'all' },
-      { name: 'Black Dress Pants', category: 'bottom', color: 'black', formality: 'formal', season: 'all' },
-      { name: 'Navy Blazer', category: 'jacket', color: 'navy', formality: 'business', season: 'all' },
-      { name: 'Red Summer Dress', category: 'dress', color: 'red', formality: 'casual', season: 'summer' }
-    ];
-
-    // Check if sample data already exists
-    const existingItems = await pool.query('SELECT COUNT(*) FROM clothing_items WHERE user_id = 1');
-    if (parseInt(existingItems.rows[0].count) === 0) {
-      for (const item of sampleItems) {
-        await pool.query(
-          'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [1, item.name, item.category, item.color, item.formality, item.season, 'Sample item for testing']
-        );
-      }
-      console.log('Sample clothing items inserted for testing');
-    }
 
     console.log('Database tables initialized');
   } catch (error) {
@@ -171,23 +116,22 @@ const initializeDatabase = async () => {
 
 initializeDatabase();
 
-// ============================================
-// API Routes
-// ============================================
-
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
-    message: 'Wardrobe Optimizer Backend is running',
+    message: 'Restyle backend is running',
     timestamp: new Date().toISOString()
   });
 });
 
-// Clothing Items endpoints
+// Get all clothing items
 app.get('/api/clothing', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1 ORDER BY created_at DESC',[req.user.id]);
+    const result = await pool.query(
+      'SELECT * FROM clothing_items WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error('Error fetching clothing items:', error);
@@ -195,18 +139,54 @@ app.get('/api/clothing', authenticateToken, async (req, res) => {
   }
 });
 
+// Get one clothing item
+app.get('/api/clothing/:id', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM clothing_items WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching clothing item:', error);
+    res.status(500).json({ error: 'Failed to fetch clothing item' });
+  }
+});
+
+// Add clothing item manually
 app.post('/api/clothing', authenticateToken, async (req, res) => {
   const { name, category, color, formality, season, notes } = req.body;
-  
+
   if (!name || !category || !color) {
-    return res.status(400).json({ error: 'Missing required fields: name, category, color' });
+    return res.status(400).json({
+      error: 'Missing required fields: name, category, color'
+    });
   }
 
   try {
     const result = await pool.query(
-      'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [req.user.id, name, category, color, formality, season, notes || null]
+      `
+      INSERT INTO clothing_items
+      (user_id, name, category, color, formality, season, notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+      `,
+      [
+        req.user.id,
+        name,
+        category,
+        color,
+        formality || 'casual',
+        season || 'all',
+        notes || null
+      ]
     );
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error adding clothing item:', error);
@@ -214,185 +194,92 @@ app.post('/api/clothing', authenticateToken, async (req, res) => {
   }
 });
 
-app.get('/api/clothing/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await pool.query('SELECT * FROM clothing_items WHERE id = $1 AND user_id = $2', [id, req.user.id]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Item not found' });
-    }
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error fetching item:', error);
-    res.status(500).json({ error: 'Failed to fetch item' });
-  }
-});
-
+// Delete clothing item
 app.delete('/api/clothing/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
   try {
-    const result = await pool.query('DELETE FROM clothing_items WHERE id = $1 AND user_id = $2 RETURNING *', [id, req.user.id]);
+    const result = await pool.query(
+      'DELETE FROM clothing_items WHERE id = $1 AND user_id = $2 RETURNING *',
+      [req.params.id, req.user.id]
+    );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
-    res.json({ message: 'Item deleted successfully', item: result.rows[0] });
-  } catch (error) {
-    console.error('Error deleting item:', error);
-    res.status(500).json({ error: 'Failed to delete item' });
-  }
-});
-
-// Outfit Compatibility Analysis
-app.post('/api/analyze/compatibility', authenticateToken, async (req, res) => {
-  const { formality, season } = req.body;
-  
-  try {
-    let query = 'SELECT * FROM clothing_items WHERE user_id = $1';
-    const params = [req.user.id];
-
-    if (formality && formality !== 'all') {
-      query += ' AND formality = $' + (params.length + 1);
-      params.push(formality);
-    }
-
-    if (season && season !== 'all') {
-      query += ' AND (season = $' + (params.length + 1) + ' OR season = \'all\')';
-      params.push(season);
-    }
-
-    const result = await pool.query(query, params);
-    const items = result.rows;
-
-    // Calculate outfit combinations and utilization
-    const totalOutfits = Math.max(1, Math.floor(items.length * (items.length - 1) / 2));
-    const itemUtilization = items.map(item => ({
-      id: item.id,
-      name: item.name,
-      category: item.category,
-      utilizationPercentage: Math.round(Math.random() * 100),
-      outfitCount: Math.round(Math.random() * 20)
-    }));
-
-    const avgUtilization = itemUtilization.length > 0 
-      ? itemUtilization.reduce((sum, item) => sum + item.utilizationPercentage, 0) / itemUtilization.length
-      : 0;
 
     res.json({
-      totalOutfits,
-      itemsAnalyzed: items.length,
-      avgUtilization,
-      itemUtilization,
-      insights: [
-        items.length > 0 ? `Found ${items.length} compatible items for outfit building` : 'Add items to your wardrobe to begin analysis',
-        avgUtilization > 70 ? 'Your wardrobe has great compatibility!' : 'Consider adding more versatile items',
-        items.length < 5 ? 'A capsule wardrobe typically has 10-30 items' : 'You have a good foundation to work with'
-      ]
+      message: 'Item deleted successfully',
+      item: result.rows[0]
     });
   } catch (error) {
-    console.error('Error analyzing compatibility:', error);
-    res.status(500).json({ error: 'Failed to analyze outfit compatibility' });
+    console.error('Error deleting clothing item:', error);
+    res.status(500).json({ error: 'Failed to delete clothing item' });
   }
 });
 
-// Item Utilization metrics
-app.get('/api/analyze/utilization', authenticateToken, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1', [req.user.id]);
-    const items = result.rows;
-
-    const utilization = items.map(item => ({
-      id: item.id,
-      name: item.name,
-      utilizationPercentage: Math.round(Math.random() * 100),
-      outfitCount: Math.round(Math.random() * 20)
-    }));
-
-    res.json(utilization);
-  } catch (error) {
-    console.error('Error fetching utilization:', error);
-    res.status(500).json({ error: 'Failed to fetch utilization data' });
-  }
-});
-
-// Capsule Wardrobe Recommendations
-app.post('/api/capsule/recommendations', authenticateToken, async (req, res) => {
-  const { desiredSize, lifestyle, climate, budget } = req.body;
-  
-  try {
-    const result = await pool.query('SELECT * FROM clothing_items WHERE user_id = $1 ORDER BY RANDOM() LIMIT $2', [req.user.id, desiredSize || 20]);
-    const items = result.rows;
-
-    const itemsByCategory = {};
-    items.forEach(item => {
-      if (!itemsByCategory[item.category]) {
-        itemsByCategory[item.category] = [];
-      }
-      itemsByCategory[item.category].push({
-        name: item.name,
-        color: item.color,
-        reason: 'Versatile piece'
-      });
-    });
-
-    res.json({
-      capsuleSize: items.length,
-      potentialOutfits: Math.floor(items.length * (items.length - 1) / 2),
-      reductionPercentage: Math.round(items.length > 0 ? 100 - (items.length / 50) * 100 : 0),
-      itemsByCategory,
-      recommendations: [
-        `This ${items.length}-item capsule maximizes outfit combinations`,
-        `Recommended for a ${lifestyle} lifestyle with ${climate} climate`,
-        'Focus on neutral colors and versatile pieces',
-        'Consider quality over quantity for budget-friendly selection'
-      ]
-    });
-  } catch (error) {
-    console.error('Error generating recommendations:', error);
-    res.status(500).json({ error: 'Failed to generate recommendations' });
-  }
-});
-
-// Image Upload Endpoint
-app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
+// Upload clothing image and save item
+app.post('/api/upload-clothing', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
 
-    const { type, color, brand, size } = req.body;
-    if (!type || !color) {
-      return res.status(400).json({ error: 'Missing required fields: type, color' });
+    const {
+      name,
+      category,
+      color,
+      formality,
+      season,
+      brand,
+      size,
+      notes
+    } = req.body;
+
+    if (!category || !color) {
+      return res.status(400).json({
+        error: 'Missing required fields: category, color'
+      });
     }
 
-    // Generate unique filename
     const filename = `${uuidv4()}-${Date.now()}.jpg`;
-    const imagePath = `/uploads/${filename}`;
+    const fullImagePath = path.join(uploadsDir, filename);
+    const imageUrl = `/uploads/${filename}`;
 
-    // Process image with Sharp
     await sharp(req.file.buffer)
-      .resize(400, 500, { fit: 'cover', position: 'center' })
-      .jpeg({ quality: 80 })
-      .toFile(`${__dirname}/public/uploads/${filename}`);
+      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 90 })
+      .toFile(fullImagePath);
 
-    // Store clothing item in database
-    let user_id = 1; // Default user_id for now (user-based during auth)
-    try {
-      if (req.user && req.user.id) {
-        user_id = req.user.id;
-      }
-    } catch (e) {
-      // Continue with default user_id
-    }
+    const combinedNotes = [
+      brand ? `Brand: ${brand}` : null,
+      size ? `Size: ${size}` : null,
+      notes || null
+    ]
+      .filter(Boolean)
+      .join(' | ');
 
     const result = await pool.query(
-      'INSERT INTO clothing_items (user_id, name, category, color, formality, season, notes, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-      [user_id, brand || 'Unknown', type, color, 'casual', 'all-seasons', size || 'M', imagePath]
+      `
+      INSERT INTO clothing_items
+      (user_id, name, category, color, formality, season, notes, image_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+      `,
+      [
+        req.user.id,
+        name || brand || 'Unnamed Item',
+        category,
+        color,
+        formality || 'casual',
+        season || 'all',
+        combinedNotes || null,
+        imageUrl
+      ]
     );
 
     res.status(201).json({
       success: true,
       clothing_item: result.rows[0],
-      imageUrl: imagePath
+      imageUrl
     });
   } catch (error) {
     console.error('Error uploading clothing image:', error);
@@ -400,76 +287,17 @@ app.post('/api/upload-clothing', upload.single('image'), async (req, res) => {
   }
 });
 
-// Background Removal Endpoint
-// Background removal endpoint removed. Image processing now handled locally via /api/upload-clothing.
-
-// Get uploaded wardrobe
-app.get('/api/wardrobe', async (req, res) => {
-  try {
-    let user_id = 1; // Default user_id
-    try {
-      if (req.user && req.user.id) {
-        user_id = req.user.id;
-      }
-    } catch (e) {
-      // Continue with default user_id
-    }
-
-    const result = await pool.query(
-      'SELECT * FROM clothing_items WHERE user_id = $1 ORDER BY created_at DESC',
-      [user_id]
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching wardrobe:', error);
-    res.status(500).json({ error: 'Failed to fetch wardrobe' });
-  }
-});
-
-// Save outfit
-app.post('/api/save-outfit', async (req, res) => {
-  try {
-    const { outfit, avatar } = req.body;
-    
-    if (!outfit || !avatar) {
-      return res.status(400).json({ error: 'Missing outfit or avatar data' });
-    }
-
-    // Save outfit data (for now, just return success)
-    // In production, you'd store this in the database
-    res.json({
-      success: true,
-      message: 'Outfit saved successfully',
-      outfit,
-      avatar
-    });
-  } catch (error) {
-    console.error('Error saving outfit:', error);
-    res.status(500).json({ error: 'Failed to save outfit' });
-  }
-});
-
-// Generate outfit suggestions using beam search
-app.post('/api/outfits/generate', async (req, res) => {
+// Generate outfits
+app.post('/api/outfits/generate', authenticateToken, async (req, res) => {
   try {
     const { formality = 'all', season = 'all', beamWidth = 5 } = req.body;
 
-    let user_id = 1; // Default user_id
-    try {
-      if (req.user && req.user.id) {
-        user_id = req.user.id;
-      }
-    } catch (e) {
-      // Continue with default user_id
-    }
-
     const result = await pool.query(
       'SELECT * FROM clothing_items WHERE user_id = $1',
-      [user_id]
+      [req.user.id]
     );
 
     const items = result.rows;
-
     const outfits = beamSearchGenerateOutfits(items, {
       formality,
       season,
@@ -487,17 +315,20 @@ app.post('/api/outfits/generate', async (req, res) => {
   }
 });
 
-// Error handling middleware
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  res.status(500).json({
+    error: err.message || 'Internal server error'
+  });
 });
 
-// ============================================
-// Start Server
-// ============================================
-
-const PORT = process.env.PORT || 5000;
+// Start server
 app.listen(PORT, () => {
   console.log(`\n✓ Restyle Backend running at http://localhost:${PORT}\n`);
 });

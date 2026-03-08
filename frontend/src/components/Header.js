@@ -15,7 +15,7 @@ const Header = ({ onLogout }) => {
   useEffect(() => {
     const updateTimeBasedStyles = () => {
       const hour = new Date().getHours();
-      
+
       if (hour >= 5 && hour < 12) {
         setTimeClass('morning');
         setGreeting('Good morning');
@@ -37,11 +37,26 @@ const Header = ({ onLogout }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // clear auth token and navigate to login page
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(!!localStorage.getItem('token'));
+    };
+
+    window.addEventListener('storage', syncAuthState);
+    syncAuthState();
+
+    return () => window.removeEventListener('storage', syncAuthState);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
-    if (onLogout) onLogout();
+
+    if (onLogout) {
+      onLogout();
+    }
+
     navigate('/login');
   };
 
@@ -49,16 +64,17 @@ const Header = ({ onLogout }) => {
     <header className={`header ${timeClass}`}>
       <div className="container">
         <h1 className="logo">RESTYLE</h1>
-        
+
         <span className="greeting">{greeting}</span>
-        
+
         <nav className="nav">
           <Link to="/">Home</Link>
-          <Link to="/inventory">Inventory</Link>
-          <Link to="/analyzer">Analyzer</Link>
-          <Link to="/capsule">Capsule</Link>
-          {/* Upload and Try-On links removed */}
-          {!isAuthenticated && <Link to="/login">Sign in</Link>}
+          <Link to="/wardrobe">Wardrobe</Link>
+          <Link to="/outfit-generator">Outfit Generator</Link>
+          <Link to="/outfit-preview">Outfit Preview</Link>
+
+          {!isAuthenticated && <Link to="/login">Log In / Sign Up</Link>}
+
           {isAuthenticated && (
             <button onClick={handleLogout} className="logout-btn">
               Logout
