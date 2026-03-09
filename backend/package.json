@@ -1,7 +1,7 @@
 {
-  "name": "project-website-backend",
+  "name": "restyle-backend",
   "version": "1.0.0",
-  "description": "Node.js backend for project website",
+  "description": "Backend for Restyle Wardrobe Manager",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
