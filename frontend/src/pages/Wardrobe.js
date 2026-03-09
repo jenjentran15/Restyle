@@ -39,10 +39,6 @@ function Wardrobe() {
         }
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -51,7 +47,6 @@ function Wardrobe() {
         setItems(data.items);
       } else {
         setItems([]);
-        setError('Received invalid data format from server');
       }
     } catch (error) {
       console.error('Error fetching clothing items:', error);
@@ -202,7 +197,16 @@ function Wardrobe() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => setShowAddForm((prev) => !prev)}
+            onClick={() => {
+              const token = localStorage.getItem('token');
+              if (!token) {
+                if (window.confirm('You need to be logged in to add items. Go to login page?')) {
+                  window.location.href = '/login';
+                }
+                return;
+              }
+              setShowAddForm((prev) => !prev);
+            }}
           >
             {showAddForm ? 'Close Add Item Form' : '+ Add Clothing Item'}
           </button>
