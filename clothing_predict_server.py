@@ -146,8 +146,9 @@ def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int
     )
     counts = np.bincount(labels.flatten(), minlength=K)
     idx = int(np.argmax(counts))
-    bgr = centers[idx]
-    r, g, b = int(bgr[2]), int(bgr[1]), int(bgr[0])
+    # Input pixels are RGB; cv2.kmeans centers stay in the same channel order (not BGR).
+    cent = centers[idx]
+    r, g, b = int(cent[0]), int(cent[1]), int(cent[2])
     r = max(0, min(255, r))
     g = max(0, min(255, g))
     b = max(0, min(255, b))
