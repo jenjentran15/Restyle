@@ -20,6 +20,11 @@ require('dotenv').config();
 
 const pool = require('./config/database');
 const { beamSearchGenerateOutfits } = require('./outfitGenerator');
+const {
+  callPredictService,
+  normalizePredictionPayload,
+  buildSuggestedName
+} = require('./clothingPrediction');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -250,6 +255,63 @@ app.post('/api/clothing', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error adding clothing item:', error);
     res.status(500).json({ error: 'Failed to add clothing item' });
+  }
+});
+
+/**
+ * Scan an image with the Python PyTorch service and return suggested wardrobe fields.
+ * Requires clothing_predict_server.py running (see repo root). Does not save to DB.
+ */
+app.post('/api/predict-clothing', authenticateToken, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        ok: false,
+        error: 'NO_FILE',
+        message: 'No image file provided'
+      });
+    }
+
+    let raw;
+    try {
+      raw = await callPredictService(req.file.buffer, req.file.originalname, req.file.mimetype);
+    } catch (err) {
+      console.error('Prediction service error:', err.message || err);
+      const isConn =
+        /Cannot reach clothing prediction service|ECONNREFUSED|timed out|timeout/i.test(
+          String(err.message || err)
+        );
+      return res.status(isConn ? 503 : 502).json({
+        ok: false,
+        error: isConn ? 'PREDICT_UNAVAILABLE' : 'PREDICT_FAILED',
+        message: err.message || 'Prediction failed',
+        hint:
+          'Start the Python app from the repo root: pip install -r requirements (if any) then python clothing_predict_server.py'
+      });
+    }
+
+    const normalized = normalizePredictionPayload(raw);
+    const suggestedName = buildSuggestedName(normalized);
+
+    return res.json({
+      ok: true,
+      suggestedName,
+      category: normalized.category,
+      color: normalized.color,
+      season: normalized.season,
+      description: normalized.description,
+      confidence: normalized.confidence,
+      rawCategory: normalized.rawCategory,
+      imagenetTop5: normalized.imagenetTop5,
+      raw: raw
+    });
+  } catch (error) {
+    console.error('predict-clothing route error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'SERVER_ERROR',
+      message: error.message || 'Server error'
+    });
   }
 });
 

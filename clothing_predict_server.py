@@ -29,7 +29,7 @@ import re
 from typing import Any
 
 import numpy as np
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import torch
@@ -210,24 +210,36 @@ def health() -> dict[str, str]:
 
 @app.post("/predict-clothing")
 async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
-    raw = await file.read()
-    pil = Image.open(io.BytesIO(raw))
+    try:
+        raw = await file.read()
+        if not raw or len(raw) < 100:
+            raise HTTPException(status_code=400, detail="Empty or too-small image file")
 
-    category, conf, top5 = _predict_clothing_category(pil)
-    color_name, rgb = _dominant_color_name(pil)
-    season = _infer_season(category, color_name)
-    description = _build_description(season, color_name, category)
+        try:
+            pil = Image.open(io.BytesIO(raw)).convert("RGB")
+            pil.load()
+        except OSError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid or unsupported image: {e!s}") from e
 
-    return {
-        "category": category,
-        "color": color_name,
-        "rgb": {"r": rgb[0], "g": rgb[1], "b": rgb[2]},
-        "season": season,
-        "description": description,
-        "confidence_category": round(conf, 4),
-        "imagenet_top5_hints": top5,
-        "notes": "Category is inferred via ImageNet→clothing mapping; train a dedicated model for production accuracy.",
-    }
+        category, conf, top5 = _predict_clothing_category(pil)
+        color_name, rgb = _dominant_color_name(pil)
+        season = _infer_season(category, color_name)
+        description = _build_description(season, color_name, category)
+
+        return {
+            "category": category,
+            "color": color_name,
+            "rgb": {"r": rgb[0], "g": rgb[1], "b": rgb[2]},
+            "season": season,
+            "description": description,
+            "confidence_category": round(conf, 4),
+            "imagenet_top5_hints": top5,
+            "notes": "Category is inferred via ImageNet→clothing mapping; train a dedicated model for production accuracy.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction error: {e!s}") from e
 
 
 def main() -> None:
