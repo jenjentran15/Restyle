@@ -484,59 +484,6 @@ app.post('/api/upload-clothing', authenticateToken, upload.single('image'), asyn
     res.status(500).json({ error: 'Failed to upload clothing image' });
   }
 });
-    }
-
-    const normalizedName = cleanText(name || brand, 'Unnamed Item');
-    const normalizedCategory = normalizeCategory(category);
-    const normalizedColor = cleanText(color).toLowerCase();
-    const normalizedFormality = normalizeFormality(formality);
-    const normalizedSeason = normalizeSeason(season);
-    const filename = `${uuidv4()}-${Date.now()}.jpg`;
-    const fullImagePath = path.join(uploadsDir, filename);
-    const imageUrl = `/uploads/${filename}`;
-
-    await sharp(req.file.buffer)
-      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 90 })
-      .toFile(fullImagePath);
-
-    const combinedNotes = [
-      brand ? `Brand: ${brand}` : null,
-      size ? `Size: ${size}` : null,
-      notes || null
-    ]
-      .filter(Boolean)
-      .join(' | ');
-
-    const result = await pool.query(
-      `
-      INSERT INTO clothing_items
-      (user_id, name, category, color, formality, season, notes, image_url)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-      `,
-      [
-        req.user.id,
-        normalizedName,
-        normalizedCategory,
-        normalizedColor,
-        normalizedFormality,
-        normalizedSeason,
-        combinedNotes || null,
-        imageUrl
-      ]
-    );
-
-    res.status(201).json({
-      success: true,
-      clothing_item: result.rows[0],
-      imageUrl
-    });
-  } catch (error) {
-    console.error('Error uploading clothing image:', error);
-    res.status(500).json({ error: 'Failed to upload clothing image' });
-  }
-});
 
 // Generate outfits
 app.post('/api/outfits/generate', authenticateToken, async (req, res) => {
