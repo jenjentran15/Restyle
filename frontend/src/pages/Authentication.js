@@ -88,7 +88,7 @@ function Authentication() {
       <header className="header">
         <div className="container">
           <Link to="/" style={{ textDecoration: 'none' }}>
-            <h1 className="logo">👔 Restyle</h1>
+            <h1 className="logo">Restyle</h1>
           </Link>
         </div>
       </header>

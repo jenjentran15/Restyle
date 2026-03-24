@@ -176,7 +176,7 @@ function Wardrobe() {
   return (
     <div className="inventory-page">
       <div className="container">
-        <h2>👕 My Wardrobe</h2>
+        <h2>My Wardrobe</h2>
 
         {error && (
           <div
