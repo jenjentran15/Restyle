@@ -311,7 +311,7 @@ function Wardrobe() {
                     {scanLoading ? 'Scanning…' : 'Scan photo & fill fields'}
                   </button>
                   <span style={{ fontSize: '0.9rem', color: '#555' }}>
-                    Uses PyTorch on your machine (start the Python server first).
+                    Lightweight local scan (Python server). Optional: add PyTorch later for better type detection.
                   </span>
                 </div>
                 {scanError && (

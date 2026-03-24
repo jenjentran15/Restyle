@@ -6,16 +6,16 @@ What it does
     category, color, season, description, confidence (approximate), notes
 
 How to run (from repo root)
-  pip install fastapi uvicorn python-multipart torch torchvision pillow numpy opencv-python-headless
+  pip install -r requirements.txt
   python clothing_predict_server.py
   # or: uvicorn clothing_predict_server:app --host 127.0.0.1 --port 8000
 
-First run downloads ImageNet weights (~45MB) — needs network once.
+Optional better category accuracy (still lightweight CPU):
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 Limitations (honest MVP)
-  - Category uses a pretrained ResNet18 on ImageNet labels, mapped to clothing words.
-    It is NOT a dedicated fashion dataset; replace `model` + mapping with your fine-tuned
-    weights when your team has labeled data.
+  - If torch/torchvision is installed, category uses a pretrained ResNet18 mapped to clothing words.
+  - If torch/torchvision is not installed, it falls back to filename-based category hints.
   - Color = dominant cluster in the image (good for solid colors; busy photos are harder).
   - Season = simple rules from category + color name (easy to swap for a trained head).
 
@@ -32,17 +32,29 @@ import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
-import torch
 import cv2
-from torchvision.models import resnet18, ResNet18_Weights
 
-# --- PyTorch model (loaded once) ---
-_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-_WEIGHTS = ResNet18_Weights.IMAGENET1K_V1
-_MODEL = resnet18(weights=_WEIGHTS).to(_DEVICE)
-_MODEL.eval()
-_IMAGENET_LABELS: list[str] = list(_WEIGHTS.meta["categories"])
-_PREPROCESS = _WEIGHTS.transforms()
+# Optional ML dependency: keep service runnable even without torch.
+_TORCH_READY = False
+_TORCH_IMPORT_ERR = ""
+_DEVICE = "cpu"
+_MODEL = None
+_IMAGENET_LABELS: list[str] = []
+_PREPROCESS = None
+
+try:
+    import torch
+    from torchvision.models import ResNet18_Weights, resnet18
+
+    _DEVICE = str(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    _WEIGHTS = ResNet18_Weights.IMAGENET1K_V1
+    _MODEL = resnet18(weights=_WEIGHTS).to(_DEVICE)
+    _MODEL.eval()
+    _IMAGENET_LABELS = list(_WEIGHTS.meta["categories"])
+    _PREPROCESS = _WEIGHTS.transforms()
+    _TORCH_READY = True
+except Exception as e:  # pylint: disable=broad-except
+    _TORCH_IMPORT_ERR = str(e)
 
 
 def _map_imagenet_to_clothing(label: str) -> str | None:
@@ -101,6 +113,28 @@ def _predict_clothing_category(pil_img: Image.Image) -> tuple[str, float, list[s
         return "clothing item", float(p_vals[0].item()), top_labels[:5]
 
     return best_cat, best_conf, top_labels[:5]
+
+
+def _guess_category_from_filename(filename: str | None) -> str:
+    """Lightweight fallback when torch isn't installed."""
+    name = (filename or "").lower()
+    rules = [
+        (r"t[-_ ]?shirt|tee", "t-shirt"),
+        (r"tank", "tank top"),
+        (r"hoodie|sweater", "sweater"),
+        (r"shirt|blouse", "shirt"),
+        (r"jeans?", "jeans"),
+        (r"shorts?", "shorts"),
+        (r"pants?|trousers?", "pants"),
+        (r"skirt", "skirt"),
+        (r"dress", "dress"),
+        (r"jacket|coat|blazer", "jacket"),
+        (r"shoe|sneaker|boot|loafer|sandal", "shoes"),
+    ]
+    for pattern, category in rules:
+        if re.search(pattern, name):
+            return category
+    return "top"
 
 
 # --- Dominant color (OpenCV k-means) + name mapping ---
@@ -205,7 +239,11 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "device": str(_DEVICE)}
+    return {
+        "status": "ok",
+        "ml_mode": "torch" if _TORCH_READY else "lightweight",
+        "device": str(_DEVICE),
+    }
 
 
 @app.post("/predict-clothing")
@@ -221,7 +259,17 @@ async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
         except OSError as e:
             raise HTTPException(status_code=400, detail=f"Invalid or unsupported image: {e!s}") from e
 
-        category, conf, top5 = _predict_clothing_category(pil)
+        if _TORCH_READY:
+            category, conf, top5 = _predict_clothing_category(pil)
+            mode_note = "Category inferred via ImageNet->clothing mapping."
+        else:
+            category = _guess_category_from_filename(file.filename)
+            conf = 0.0
+            top5 = []
+            mode_note = (
+                "Torch not installed; using filename-based category hint. "
+                "Users can edit the fields manually."
+            )
         color_name, rgb = _dominant_color_name(pil)
         season = _infer_season(category, color_name)
         description = _build_description(season, color_name, category)
@@ -234,7 +282,9 @@ async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
             "description": description,
             "confidence_category": round(conf, 4),
             "imagenet_top5_hints": top5,
-            "notes": "Category is inferred via ImageNet→clothing mapping; train a dedicated model for production accuracy.",
+            "notes": mode_note,
+            "torch_ready": _TORCH_READY,
+            "torch_import_error": _TORCH_IMPORT_ERR if not _TORCH_READY else "",
         }
     except HTTPException:
         raise
