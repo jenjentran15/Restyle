@@ -1,13 +1,12 @@
 # Restyle - Wardrobe Manager
 
-A simple, clean wardrobe management application built with React and Node.js. Manage your clothing inventory, analyze outfit compatibility, and get capsule wardrobe recommendations.
+A simple, clean wardrobe management application built with React and Node.js. Manage your clothing inventory, generate outfit combinations, and preview your looks.
 
 ## Features
 
-- **Wardrobe Inventory** - Track clothing items by category, color, and season
-- **Outfit Analysis** - See how items work together
+- **Wardrobe Inventory** - Track clothing items by category, color, formality, and season
 - **AI Outfit Generation** - Use beam search to create outfit combinations
-- **Capsule Recommendations** - Get suggestions for a minimal wardrobe
+- **Outfit Preview** - Visual fitting room for generated outfits
 - **Image Upload** - Add photos of your clothing items
 
 ## Tech Stack
@@ -15,12 +14,125 @@ A simple, clean wardrobe management application built with React and Node.js. Ma
 **Frontend:** React 18, React Router, Axios, CSS3  
 **Backend:** Node.js, Express, PostgreSQL, Sharp (image processing)
 
-## Quick Start
+## Prerequisites
 
-### 1. Setup Database
-The app includes sample data for testing. When you start the backend, it will automatically create tables and insert sample clothing items.
+- Node.js v14+
+- PostgreSQL
+- npm
 
-### 2. Start the Application
+---
+
+## Running in WSL (Windows Subsystem for Linux)
+
+If you are on Windows and using WSL (e.g. Ubuntu on WSL2), follow these steps:
+
+### 1. Install Prerequisites in WSL
+
+```bash
+# Update packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js (via nvm - recommended)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install --lts
+nvm use --lts
+
+# Install PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+sudo service postgresql start
+```
+
+### 2. Set Up the PostgreSQL Database
+
+```bash
+# Create the database (run as postgres user)
+sudo -u postgres psql -c "CREATE DATABASE wardrobe_db;"
+
+# (Optional) Set a password for the postgres user
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your_password';"
+```
+
+### 3. Clone the Repository
+
+```bash
+git clone https://github.com/jenjentran15/Restyle.git
+cd Restyle
+```
+
+### 4. Configure Environment Variables
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Open `.env` and fill in your PostgreSQL credentials and a JWT secret:
+
+```env
+PORT=5000
+NODE_ENV=development
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=wardrobe_db
+JWT_SECRET=some_long_random_secret_string
+CORS_ORIGIN=http://localhost:3000
+```
+
+### 5. Install Dependencies
+
+```bash
+# Backend
+cd backend
+npm install
+
+# Frontend (open a new terminal tab)
+cd frontend
+npm install
+```
+
+### 6. Start the Application
+
+Open **two terminal windows** (or WSL tabs):
+
+**Terminal 1 – Backend (port 5000):**
+```bash
+cd backend
+npm run dev
+```
+
+**Terminal 2 – Frontend (port 3000):**
+```bash
+cd frontend
+npm start
+```
+
+The app will open at **http://localhost:3000** in your browser.
+
+> **Tip:** If your browser is on Windows and WSL2 is running the servers, `localhost` should work automatically. If not, find your WSL IP with `hostname -I` and use that instead.
+
+---
+
+## Quick Start (macOS / Linux)
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/jenjentran15/Restyle.git
+cd Restyle
+```
+
+### 2. Setup Environment Variables
+
+```bash
+cd backend
+cp .env.example .env
+# Edit .env with your PostgreSQL credentials and JWT secret
+```
+
+### 3. Install Dependencies & Start
 
 **Terminal 1 - Backend:**
 ```bash
@@ -36,190 +148,72 @@ npm install
 npm start
 ```
 
-### 3. Test the Outfit Generator
-- Go to the Inventory page
-- You'll see 10 sample clothing items
-- Click "Generate Outfits" to see AI-generated combinations
-
-## Prerequisites
-
-- Node.js v14+
-- PostgreSQL
-- npm or yarn
-
-## Quick Start
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/yourusername/project-website.git
-cd project-website
-```
-
-### 2. Setup Environment Variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your configuration values.
-
-### 3. Install Frontend Dependencies
-
-```bash
-cd frontend
-npm install
-```
-
-### 4. Install Backend Dependencies
-
-```bash
-cd ../backend
-npm install
-```
-
-### 5. Setup Python Environment
-
-```bash
-cd ../python-engine
-python -m venv venv
-
-# On Windows
-venv\Scripts\activate
-
-# On macOS/Linux
-source venv/bin/activate
-
-pip install -r requirements.txt
-```
-
-## 🏃 Running the Application
-
-### Terminal 1 - Frontend (Port 3000)
-```bash
-cd frontend
-npm start
-```
-
-### Terminal 2 - Backend (Port 5000)
-```bash
-cd backend
-npm run dev
-```
-
-### Terminal 3 - Python Engine (Port 5001)
-```bash
-cd python-engine
-python app.py
-```
-
 The application will be available at `http://localhost:3000`
+
+---
 
 ## 📁 Project Structure
 
 ```
-project-website/
+Restyle/
 ├── frontend/
 │   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── styles/
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── package.json
-│   └── vercel.json
+│   └── src/
+│       ├── assets/
+│       ├── components/   # Header, Footer
+│       ├── pages/        # Home, Wardrobe, OutfitGenerator, OutfitPreview, Authentication
+│       ├── styles/
+│       ├── App.js
+│       └── index.js
 ├── backend/
 │   ├── config/
-│   ├── middleware/
-│   ├── routes/
+│   │   └── database.js
+│   ├── public/
+│   │   └── uploads/      # Uploaded clothing images
+│   ├── outfitGenerator.js
 │   ├── server.js
 │   ├── package.json
-│   ├── .env.example
-│   └── vercel.json
-├── python-engine/
-│   ├── engine.py
-│   ├── app.py
-│   ├── requirements.txt
 │   └── .env.example
-├── .github/
-│   ├── CONTRIBUTING.md
-│   └── README.md
-├── .env.example
 ├── .gitignore
 └── README.md
 ```
 
+---
+
 ## 🔌 API Endpoints
 
-### Backend (Node.js)
+### Auth
+- `POST /api/auth/signup` – Create a new account
+- `POST /api/auth/login`  – Log in and receive a JWT token
 
-**Clothing Items:**
-- `GET /api/clothing` - Get all clothing items
-- `POST /api/clothing` - Add new clothing item
-- `GET /api/clothing/:id` - Get specific item details
-- `DELETE /api/clothing/:id` - Remove clothing item
+### Clothing Items *(requires Authorization header)*
+- `GET    /api/clothing`       – Get all your clothing items
+- `POST   /api/clothing`       – Add a new item (JSON)
+- `GET    /api/clothing/:id`   – Get a specific item
+- `DELETE /api/clothing/:id`   – Delete an item
+- `POST   /api/upload-clothing` – Add item with an image upload
 
-**Outfit Analysis:**
-- `POST /api/analyze/compatibility` - Get outfit compatibility analysis
-- `GET /api/analyze/utilization` - Get item utilization metrics
+### Outfit Generation *(requires Authorization header)*
+- `POST /api/outfits/generate` – Generate outfit combinations
 
-**Capsule Wardrobe:**
-- `POST /api/capsule/recommendations` - Get capsule wardrobe suggestions
-- `GET /api/capsule/:id` - Get generated capsule details
+### System
+- `GET /api/health` – Health check
 
-**System:**
-- `GET /api/health` - Health check endpoint
+---
 
-## 📝 Environment Variables
+## 🗄️ Database Tables
 
-Create a `.env` file in the root directory:
+- `users` – Stores user accounts
+- `clothing_items` – Stores user clothing inventory
 
-```env
-# Frontend
-REACT_APP_API_URL=http://localhost:5000
-
-# Backend
-PORT=5000
-NODE_ENV=development
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=wardrobe_db
-CORS_ORIGIN=http://localhost:3000
-
-# Python Engine
-OPENAI_API_KEY=your_openai_api_key
-PYTHON_ENGINE_PORT=5001
-PYTORCH_MODEL_PATH=./models
-```
-
-## 🗄️ Database Setup
-
-### PostgreSQL
-
-1. Create a new database:
-```bash
-psql -U postgres -c "CREATE DATABASE wardrobe_db;"
-```
-
-2. Update `.env` with your PostgreSQL credentials
-
-3. The backend will initialize the required tables on first run
-
-### Database Tables
-- `clothing_items` - Stores user clothing inventory
-- `outfit_compatibility` - Stores outfit combination rules
-- `capsule_recommendations` - Stores generated capsule wardrobes
-- `user_preferences` - Stores user constraints and preferences
+---
 
 ## 🚀 Deployment
 
 ### Deploy to Vercel
 
 1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
+2. Set environment variables in the Vercel dashboard
 3. Deploy frontend and backend separately
 
 **Frontend:**
@@ -235,27 +229,18 @@ cd backend
 vercel deploy
 ```
 
+---
+
 ## 🤝 Contributing
 
-Please see [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines on how to contribute to this project.
+Please open an issue or pull request for any bugs or improvements.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👥 Support
-
-For issues, questions, or suggestions, please open an issue on GitHub.
-
-## 🔗 Useful Links
-
-- [React Documentation](https://react.dev)
-- [Node.js Documentation](https://nodejs.org/docs)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs)
-- [PyTorch Documentation](https://pytorch.org/docs)
-- [Vercel Documentation](https://vercel.com/docs)
+This project is licensed under the MIT License.
 
 ---
 
-**Created**: February 2026
-**Updated**: February 12, 2026
+**Created**: February 2026  
+**Updated**: March 2026
+

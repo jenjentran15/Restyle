@@ -77,14 +77,6 @@ function outfitScore(outfit, requestedFormality, requestedSeason) {
   );
 }
 
-function buildOutfit(top, bottom, shoes, outerwear = null) {
-  const outfit = [top, bottom, shoes];
-  if (outerwear) {
-    outfit.push(outerwear);
-  }
-  return outfit;
-}
-
 function beamSearchGenerateOutfits(items, options = {}) {
   const beamWidth = options.beamWidth || 5;
   const requestedFormality = options.formality || 'all';

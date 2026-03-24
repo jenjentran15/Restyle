@@ -1,4 +1,3 @@
-require('dotenv').config();
 /**
  * Restyle Wardrobe Optimizer - Backend Server
  * Cleaned MVP backend for:
@@ -8,6 +7,7 @@ require('dotenv').config();
  * - Outfit Preview
  * - Login / Signup (frontend only for now)
  */
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -15,8 +15,8 @@ const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
 
 const pool = require('./config/database');
 const { beamSearchGenerateOutfits } = require('./outfitGenerator');
@@ -145,8 +145,6 @@ app.post('/api/auth/signup', async (req, res) => {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0)
       return res.status(400).json({ message: 'Email already in use' });
-    const bcrypt = require('bcryptjs');
-    const jwt = require('jsonwebtoken');
     const hashed = await bcrypt.hash(password, 10);
     const result = await pool.query(
       'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email',
@@ -167,8 +165,6 @@ app.post('/api/auth/login', async (req, res) => {
   if (!email || !password)
     return res.status(400).json({ message: 'Please fill in the blank spaces' });
   try {
-    const bcrypt = require('bcryptjs');
-    const jwt = require('jsonwebtoken');
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0)
       return res.status(401).json({ message: 'Invalid email or password' });

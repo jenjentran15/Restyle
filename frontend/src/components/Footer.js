@@ -6,7 +6,7 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="container">
-        <p>&copy; 2026 Project Website. All rights reserved.</p>
+        <p>&copy; 2026 Restyle. All rights reserved.</p>
         <div className="footer-links">
           <a href="#privacy">Privacy</a>
           <a href="#terms">Terms</a>

@@ -165,8 +165,8 @@ function Authentication() {
                 </div>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="btn btn-primary btn-full"
                 disabled={loading}
               >
@@ -177,8 +177,8 @@ function Authentication() {
             <div className="auth-footer">
               <p>
                 {isLogin ? "Don't have an account? " : "Already have an account? "}
-                <button 
-                  onClick={toggleMode} 
+                <button
+                  onClick={toggleMode}
                   className="toggle-link"
                   disabled={loading}
                   type="button"
@@ -188,11 +188,10 @@ function Authentication() {
               </p>
             </div>
           </div>
-
         </div>
       </div>
     </div>
-    </div>
+  </div>
   );
 }
 
