@@ -191,12 +191,15 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/auth/signup', async (req, res) => {
   const { name, email, password } = req.body;
+  console.log(`[AUTH] Signup attempt: email=${email}`);
   if (!name || !email || !password)
     return res.status(400).json({ message: 'Please fill in the blank spaces' });
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0)
+    if (existing.rows.length > 0) {
+      console.log(`[AUTH] Signup failed: email already in use`);
       return res.status(400).json({ message: 'Email already in use' });
+    }
     const bcrypt = require('bcryptjs');
     const jwt = require('jsonwebtoken');
     const hashed = await bcrypt.hash(password, 10);
@@ -206,9 +209,10 @@ app.post('/api/auth/signup', async (req, res) => {
     );
     const user = result.rows[0];
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    console.log(`[AUTH] Signup success: user_id=${user.id}, email=${email}`);
     res.status(201).json({ token, user });
   } catch (err) {
-    console.error('Signup error:', err);
+    console.error(`[AUTH] Signup error: ${err.message}`);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -318,14 +322,17 @@ app.post('/api/clothing', authenticateToken, async (req, res) => {
 app.post('/api/predict-clothing', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
+      console.log('[PREDICT] No file provided');
       return res.status(400).json({
         ok: false,
         error: 'NO_FILE',
         message: 'No image file provided'
       });
     }
-    // Extra guardrail: multer already restricts image/*, but this keeps responses clearer.
+    console.log(`[PREDICT] File received: ${req.file.originalname} (${req.file.size} bytes)`);
+    
     if (!req.file.mimetype || !req.file.mimetype.startsWith('image/')) {
+      console.log(`[PREDICT] Invalid mimetype: ${req.file.mimetype}`);
       return res.status(400).json({
         ok: false,
         error: 'INVALID_FILE_TYPE',
@@ -335,9 +342,11 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
 
     let raw;
     try {
+      console.log(`[PREDICT] Calling Python predictor...`);
       raw = await callPredictService(req.file.buffer, req.file.originalname, req.file.mimetype);
+      console.log(`[PREDICT] Python response received`);
     } catch (err) {
-      console.error('Prediction service error:', err.message || err);
+      console.error(`[PREDICT] Predictor error: ${err.message || err}`);
       const isConn =
         /Cannot reach clothing prediction service|ECONNREFUSED|timed out|timeout/i.test(
           String(err.message || err)
@@ -347,12 +356,13 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
         error: isConn ? 'PREDICT_UNAVAILABLE' : 'PREDICT_FAILED',
         message: err.message || 'Prediction failed',
         hint:
-          'Start the Python app from the repo root: pip install -r requirements (if any) then python clothing_predict_server.py'
+          'Start the Python app from the repo root: pip install -r requirements then python clothing_predict_server.py'
       });
     }
 
     const normalized = normalizePredictionPayload(raw);
     const suggestedName = buildSuggestedName(normalized);
+    console.log(`[PREDICT] Result: name="${suggestedName}", category=${normalized.category}, color=${normalized.color}, season=${normalized.season}, confidence=${normalized.confidence}`);
 
     return res.json({
       ok: true,
@@ -367,7 +377,7 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
       raw: raw
     });
   } catch (error) {
-    console.error('predict-clothing route error:', error);
+    console.error(`[PREDICT] Route error: ${error.message}`);
     return res.status(500).json({
       ok: false,
       error: 'SERVER_ERROR',
@@ -402,27 +412,78 @@ app.delete('/api/clothing/:id', authenticateToken, async (req, res) => {
 app.post('/api/upload-clothing', authenticateToken, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
+      console.log('[UPLOAD] No image provided');
       return res.status(400).json({ error: 'No image file provided' });
     }
     if (!req.file.mimetype || !req.file.mimetype.startsWith('image/')) {
+      console.log(`[UPLOAD] Invalid mimetype: ${req.file.mimetype}`);
       return res.status(400).json({ error: 'Only image files are allowed' });
     }
 
-    const {
-      name,
-      category,
-      color,
-      formality,
-      season,
-      brand,
-      size,
-      notes
-    } = req.body;
+    const { name, category, color, formality, season, brand, size, notes } = req.body;
+    console.log(`[UPLOAD] File: ${req.file.originalname}, name: ${name}, category: ${category}, color: ${color}`);
 
     if (!category || !color) {
+      console.log('[UPLOAD] Missing required fields: category or color');
       return res.status(400).json({
         error: 'Missing required fields: category, color'
       });
+    }
+
+    const normalizedName = cleanText(name || brand, 'Unnamed Item');
+    const normalizedCategory = normalizeCategory(category);
+    const normalizedColor = cleanText(color).toLowerCase();
+    const normalizedFormality = normalizeFormality(formality);
+    const normalizedSeason = normalizeSeason(season);
+    const filename = `${uuidv4()}-${Date.now()}.jpg`;
+    const fullImagePath = path.join(uploadsDir, filename);
+    const imageUrl = `/uploads/${filename}`;
+
+    console.log(`[UPLOAD] Processing image: ${filename}`);
+    await sharp(req.file.buffer)
+      .resize(800, 1000, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 90 })
+      .toFile(fullImagePath);
+    console.log(`[UPLOAD] Image saved to: ${imageUrl}`);
+
+    const combinedNotes = [
+      brand ? `Brand: ${brand}` : null,
+      size ? `Size: ${size}` : null,
+      notes || null
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    const result = await pool.query(
+      `
+      INSERT INTO clothing_items
+      (user_id, name, category, color, formality, season, notes, image_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+      `,
+      [
+        req.user.id,
+        normalizedName,
+        normalizedCategory,
+        normalizedColor,
+        normalizedFormality,
+        normalizedSeason,
+        combinedNotes || null,
+        imageUrl
+      ]
+    );
+    console.log(`[UPLOAD] Item added to DB (id: ${result.rows[0].id}): ${normalizedName}`);
+
+    res.status(201).json({
+      success: true,
+      clothing_item: result.rows[0],
+      imageUrl
+    });
+  } catch (error) {
+    console.error(`[UPLOAD] Error: ${error.message}`);
+    res.status(500).json({ error: 'Failed to upload clothing image' });
+  }
+});
     }
 
     const normalizedName = cleanText(name || brand, 'Unnamed Item');

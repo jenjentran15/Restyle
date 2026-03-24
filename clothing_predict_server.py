@@ -186,7 +186,9 @@ def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int
         border_pixels = np.concatenate([p.reshape(-1, 3) for p in border_parts], axis=0).astype(np.float32)
         if border_pixels.size:
             bg_mean = np.mean(border_pixels, axis=0)
-    except Exception:
+            print(f"[COLOR] Border bg mode enabled: bg_mean RGB ~ ({bg_mean[0]:.0f}, {bg_mean[1]:.0f}, {bg_mean[2]:.0f})")
+    except Exception as e:
+        print(f"[COLOR] Warning: border sampling failed: {e}")
         bg_mean = None
 
     K = 4
@@ -198,16 +200,23 @@ def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int
 
     # Prefer clusters that are not similar to the border/background color.
     chosen_idx = None
+    used_bg_exclusion = False
     if bg_mean is not None:
         dists = [float(np.linalg.norm(centers[i] - bg_mean)) for i in range(centers.shape[0])]
         BG_THRESHOLD = 40.0
         candidates = [i for i in range(len(dists)) if dists[i] > BG_THRESHOLD]
         if candidates:
             chosen_idx = max(candidates, key=lambda i: counts[i])
+            used_bg_exclusion = True
+            print(f"[COLOR] Using bg-excluded cluster (idx={chosen_idx}, dist from bg={dists[chosen_idx]:.1f})")
 
     # Fallback to largest cluster overall
     if chosen_idx is None:
         chosen_idx = int(np.argmax(counts))
+        if bg_mean is not None:
+            print(f"[COLOR] Fallback to largest cluster (bg-exclusion found no candidates)")
+        else:
+            print(f"[COLOR] Using largest cluster (no bg model available)")
 
     cent = centers[chosen_idx]
     r, g, b = int(cent[0]), int(cent[1]), int(cent[2])
@@ -267,9 +276,11 @@ app.add_middleware(
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    mode = "torch" if _TORCH_READY else "lightweight"
+    print(f"[HEALTH] Status check: mode={mode}, device={_DEVICE}")
     return {
         "status": "ok",
-        "ml_mode": "torch" if _TORCH_READY else "lightweight",
+        "ml_mode": mode,
         "device": str(_DEVICE),
     }
 
@@ -280,17 +291,25 @@ async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
         raw = await file.read()
         if not raw or len(raw) < 100:
             raise HTTPException(status_code=400, detail="Empty or too-small image file")
+        print(f"\n[PREDICT] Received file: {file.filename} ({len(raw)} bytes)")
 
         try:
             pil = Image.open(io.BytesIO(raw)).convert("RGB")
             pil.load()
+            print(f"[PREDICT] Image loaded: {pil.size[0]}x{pil.size[1]} pixels")
         except OSError as e:
+            print(f"[PREDICT] Image load failed: {e}")
             raise HTTPException(status_code=400, detail=f"Invalid or unsupported image: {e!s}") from e
 
         if _TORCH_READY:
+            print(f"[PREDICT] Mode: TORCH (ML model enabled)")
             category, conf, top5 = _predict_clothing_category(pil)
             mode_note = "Category inferred via ImageNet->clothing mapping."
+            print(f"[PREDICT] Category: {category} (confidence: {conf:.4f})")
+            if top5:
+                print(f"[PREDICT] Top-5 ImageNet hints: {top5[:3]}")
         else:
+            print(f"[PREDICT] Mode: LIGHTWEIGHT (no torch)")
             category = _guess_category_from_filename(file.filename)
             conf = 0.0
             top5 = []
@@ -298,9 +317,13 @@ async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
                 "Torch not installed; using filename-based category hint. "
                 "Users can edit the fields manually."
             )
+            print(f"[PREDICT] Category (from filename): {category}")
         color_name, rgb = _dominant_color_name(pil)
+        print(f"[PREDICT] Color: {color_name} (RGB: {rgb})")
         season = _infer_season(category, color_name)
+        print(f"[PREDICT] Season: {season}")
         description = _build_description(season, color_name, category)
+        print(f"[PREDICT] ✓ Prediction complete: {description}")
 
         return {
             "category": category,
