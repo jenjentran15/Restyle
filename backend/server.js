@@ -29,6 +29,28 @@ const {
 const app = express();
 const PORT = process.env.PORT || 5000;
 const uploadsDir = path.join(__dirname, 'public', 'uploads');
+const ALLOWED_FORMALITY = new Set(['casual', 'business', 'formal', 'athletic']);
+const ALLOWED_SEASON = new Set(['all', 'spring', 'summer', 'fall', 'winter']);
+
+function cleanText(value, fallback = '') {
+  const v = String(value ?? '').trim();
+  return v || fallback;
+}
+
+function normalizeCategory(value) {
+  const c = cleanText(value, 'top').toLowerCase();
+  return c;
+}
+
+function normalizeSeason(value) {
+  const s = cleanText(value, 'all').toLowerCase();
+  return ALLOWED_SEASON.has(s) ? s : 'all';
+}
+
+function normalizeFormality(value) {
+  const f = cleanText(value, 'casual').toLowerCase();
+  return ALLOWED_FORMALITY.has(f) ? f : 'casual';
+}
 
 // Ensure uploads directory exists once on startup
 if (!fs.existsSync(uploadsDir)) {
@@ -233,6 +255,12 @@ app.post('/api/clothing', authenticateToken, async (req, res) => {
   }
 
   try {
+    const normalizedName = cleanText(name, 'Unnamed Item');
+    const normalizedCategory = normalizeCategory(category);
+    const normalizedColor = cleanText(color).toLowerCase();
+    const normalizedFormality = normalizeFormality(formality);
+    const normalizedSeason = normalizeSeason(season);
+
     const result = await pool.query(
       `
       INSERT INTO clothing_items
@@ -242,12 +270,12 @@ app.post('/api/clothing', authenticateToken, async (req, res) => {
       `,
       [
         req.user.id,
-        name,
-        category,
-        color,
-        formality || 'casual',
-        season || 'all',
-        notes || null
+        normalizedName,
+        normalizedCategory,
+        normalizedColor,
+        normalizedFormality,
+        normalizedSeason,
+        cleanText(notes) || null
       ]
     );
 
@@ -269,6 +297,14 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
         ok: false,
         error: 'NO_FILE',
         message: 'No image file provided'
+      });
+    }
+    // Extra guardrail: multer already restricts image/*, but this keeps responses clearer.
+    if (!req.file.mimetype || !req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_FILE_TYPE',
+        message: 'Only image files are supported'
       });
     }
 
@@ -343,6 +379,9 @@ app.post('/api/upload-clothing', authenticateToken, upload.single('image'), asyn
     if (!req.file) {
       return res.status(400).json({ error: 'No image file provided' });
     }
+    if (!req.file.mimetype || !req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'Only image files are allowed' });
+    }
 
     const {
       name,
@@ -361,6 +400,11 @@ app.post('/api/upload-clothing', authenticateToken, upload.single('image'), asyn
       });
     }
 
+    const normalizedName = cleanText(name || brand, 'Unnamed Item');
+    const normalizedCategory = normalizeCategory(category);
+    const normalizedColor = cleanText(color).toLowerCase();
+    const normalizedFormality = normalizeFormality(formality);
+    const normalizedSeason = normalizeSeason(season);
     const filename = `${uuidv4()}-${Date.now()}.jpg`;
     const fullImagePath = path.join(uploadsDir, filename);
     const imageUrl = `/uploads/${filename}`;
@@ -387,11 +431,11 @@ app.post('/api/upload-clothing', authenticateToken, upload.single('image'), asyn
       `,
       [
         req.user.id,
-        name || brand || 'Unnamed Item',
-        category,
-        color,
-        formality || 'casual',
-        season || 'all',
+        normalizedName,
+        normalizedCategory,
+        normalizedColor,
+        normalizedFormality,
+        normalizedSeason,
         combinedNotes || null,
         imageUrl
       ]

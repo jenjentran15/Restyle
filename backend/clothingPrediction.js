@@ -58,19 +58,21 @@ function buildSuggestedName(normalized) {
 }
 
 function normalizePredictionPayload(raw) {
-  const category = mapCategoryToWardrobe(raw.category);
-  const color = String(raw.color || '')
+  // Be defensive: Python service should send an object, but don't assume.
+  const payload = raw && typeof raw === 'object' ? raw : {};
+  const category = mapCategoryToWardrobe(payload.category);
+  const color = String(payload.color || '')
     .toLowerCase()
     .trim();
-  const season = mapSeasonToDb(raw.season);
+  const season = mapSeasonToDb(payload.season);
   return {
-    rawCategory: raw.category,
+    rawCategory: payload.category,
     category,
-    color,
+    color: color || 'unknown',
     season,
-    description: raw.description || '',
-    confidence: typeof raw.confidence_category === 'number' ? raw.confidence_category : null,
-    imagenetTop5: Array.isArray(raw.imagenet_top5_hints) ? raw.imagenet_top5_hints : []
+    description: payload.description || '',
+    confidence: typeof payload.confidence_category === 'number' ? payload.confidence_category : null,
+    imagenetTop5: Array.isArray(payload.imagenet_top5_hints) ? payload.imagenet_top5_hints : []
   };
 }
 
