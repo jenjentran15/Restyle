@@ -8,7 +8,7 @@ function OutfitPreview() {
   return (
     <div className="capsule-page">
       <div className="container">
-        <h2>🪞 Outfit Preview</h2>
+        <h2>Outfit Preview</h2>
         <p className="subtitle">
           Preview how generated outfits will look on your future 2D model
         </p>

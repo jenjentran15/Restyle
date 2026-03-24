@@ -1,113 +1,71 @@
-/* ClothingInventory.css - styles for the wardrobe inventory page */
+/* ClothingInventory.css - redesigned to match Restyle aesthetic */
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
 .inventory-page {
-  min-height: 80vh;
-  padding: 40px 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+  padding: 120px 48px 80px;
+  background: #F8F5F0;
+  font-family: 'DM Mono', monospace;
 }
 
 .inventory-page .container {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
 .inventory-page h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 400;
+  font-style: italic;
   text-align: center;
-  font-size: 2.5rem;
+  color: #1a1a1a;
   margin-bottom: 10px;
-  color: #2c3e50;
 }
 
 .inventory-page .subtitle {
   text-align: center;
-  font-size: 1.1rem;
-  color: #555;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: #aaa;
+  letter-spacing: 0.04em;
   margin-bottom: 40px;
 }
 
+@media (max-width: 768px) {
+  .inventory-page { padding: 100px 20px 60px; }
+}
+
+/* WARDROBE ACTIONS */
+.wardrobe-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 28px;
+}
+
+/* ADD ITEM FORM */
 .add-item-section {
   background: white;
-  border-radius: 12px;
-  padding: 30px;
-  margin-bottom: 40px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 32px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.05);
 }
 
-.generate-section {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  text-align: center;
-}
-
-.generate-section h3 {
-  margin-bottom: 10px;
-  color: #2c3e50;
-}
-
-.generate-section p {
-  margin-bottom: 15px;
-  color: #555;
-}
-
-.hint {
-  margin-top: 10px;
-  font-size: 0.9em;
-  color: #666;
-}
-
-.outfits-section {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.outfits-section h3 {
-  margin-bottom: 20px;
-  color: #2c3e50;
-}
-
-.outfit-card {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-  background: #f9f9f9;
-}
-
-.outfit-card h4 {
-  margin-bottom: 10px;
-  color: #34495e;
-}
-
-.outfit-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.outfit-item {
-  background: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #eee;
-  font-size: 0.9em;
-}
-
-.sample-note {
-  font-size: 0.9em;
-  color: #666;
-  margin-bottom: 15px;
+.add-item-section h3 {
+  font-family: 'Playfair Display', serif;
   font-style: italic;
+  font-size: 20px;
+  font-weight: 400;
+  color: #1a1a1a;
+  margin: 0 0 24px 0;
 }
 
 .add-item-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .form-group {
@@ -116,163 +74,207 @@
 }
 
 .form-group label {
-  font-weight: 600;
-  color: #2c3e50;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: #aaa;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   margin-bottom: 8px;
-  font-size: 0.95rem;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  padding: 12px;
-  border: 2px solid #e0e6ed;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.3s;
+  padding: 11px 14px;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: 'DM Mono', monospace;
+  color: #1a1a1a;
+  background: #fafafa;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #E76F51;
+  box-shadow: 0 0 0 3px rgba(231,111,81,0.08);
+  background: white;
+}
+
+.form-group select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-color: #fafafa;
+  padding-right: 36px;
+}
+
+.form-group input[type="file"] {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #888;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
 }
 
 @media (max-width: 768px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
+  .form-row { grid-template-columns: 1fr; }
 }
 
+/* BUTTONS */
 .btn {
   padding: 12px 24px;
   border: none;
-  border-radius: 8px;
-  font-size: 1rem;
+  border-radius: 40px;
+  font-size: 13px;
+  font-family: 'DM Mono', monospace;
   cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  transition: all 0.2s;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1a1a1a;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+  background: #E76F51;
+  transform: scale(1.02);
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
+/* ITEMS SECTION */
 .items-section {
   background: white;
-  border-radius: 12px;
-  padding: 30px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  padding: 32px;
+  border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.05);
 }
 
 .items-section h3 {
-  font-size: 1.5rem;
-  color: #2c3e50;
-  margin-bottom: 20px;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 400;
+  color: #1a1a1a;
+  margin: 0 0 24px 0;
 }
 
 .empty-state {
   text-align: center;
-  padding: 40px;
-  color: #999;
-  font-size: 1.1rem;
+  padding: 60px 20px;
+  color: #bbb;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.8;
 }
 
 .items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
 }
 
+/* ITEM CARD */
 .item-card {
-  background: #f8f9fa;
-  border: 2px solid #e0e6ed;
-  border-radius: 10px;
+  background: #F8F5F0;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 16px;
   padding: 20px;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
 }
 
 .item-card:hover {
-  border-color: #667eea;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  border-color: #E76F51;
   transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.08);
 }
 
 .item-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
+  margin-bottom: 14px;
 }
 
 .item-header h4 {
-  font-size: 1.2rem;
-  color: #2c3e50;
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 17px;
+  font-weight: 400;
+  color: #1a1a1a;
   margin: 0;
   flex: 1;
 }
 
 .btn-delete {
-  background: #ff6b6b;
-  color: white;
-  border: none;
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #e8e4df;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 1.2rem;
+  width: 28px;
+  height: 28px;
+  font-size: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .btn-delete:hover {
-  background: #ff5252;
+  background: #ff6b6b;
+  color: white;
+  border-color: #ff6b6b;
   transform: scale(1.1);
 }
 
 .item-details {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  font-size: 0.95rem;
+  gap: 7px;
+  font-size: 12px;
 }
 
 .item-details p {
   margin: 0;
-  color: #555;
+  color: #777;
+  font-family: 'DM Mono', monospace;
 }
 
 .item-details strong {
-  color: #2c3e50;
+  color: #aaa;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .color-tag {
   display: inline-block;
-  padding: 4px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2px 10px;
+  background: #1a1a1a;
   color: white;
   border-radius: 20px;
-  font-weight: 600;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.04em;
 }

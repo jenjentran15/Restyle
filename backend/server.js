@@ -1,3 +1,4 @@
+require('dotenv').config();
 /**
  * Restyle Wardrobe Optimizer - Backend Server
  * Cleaned MVP backend for:
@@ -7,7 +8,6 @@
  * - Outfit Preview
  * - Login / Signup (frontend only for now)
  */
-
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');

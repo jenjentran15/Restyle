@@ -56,7 +56,7 @@ function OutfitGenerator() {
   return (
     <div className="analyzer-page">
       <div className="container">
-        <h2>✨ Outfit Generator</h2>
+        <h2>Outfit Generator</h2>
         <p className="subtitle">
           Generate outfit combinations from your wardrobe based on your style filters
         </p>

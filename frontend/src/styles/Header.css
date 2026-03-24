@@ -51,22 +51,6 @@
   font-style: normal;
 }
 
-/* GREETING */
-.greeting {
-  font-family: 'DM Mono', monospace;
-  font-size: 13px;
-  font-style: italic;
-  letter-spacing: 0.04em;
-  justify-self: center;
-  text-align: center;
-  transition: color 0.5s ease;
-}
-
-/* Time-based greeting colors */
-.header.morning .greeting  { color: #F4A261; }
-.header.afternoon .greeting { color: #E76F51; }
-.header.evening .greeting  { color: #6A4C93; }
-.header.night .greeting    { color: #264653; }
 
 /* NAV LINKS */
 .nav {
