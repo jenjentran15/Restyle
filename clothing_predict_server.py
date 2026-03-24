@@ -173,15 +173,43 @@ def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int
         crop = rgb
     pixels = crop.reshape(-1, 3).astype(np.float32)
 
-    K = 3
+    # Estimate background color by sampling the image border
+    bw = max(8, min(h, w) // 12)
+    bg_mean = None
+    try:
+        border_parts = []
+        if bw > 0:
+            border_parts.append(rgb[0:bw, :, :])
+            border_parts.append(rgb[h - bw : h, :, :])
+            border_parts.append(rgb[:, 0:bw, :])
+            border_parts.append(rgb[:, w - bw : w, :])
+        border_pixels = np.concatenate([p.reshape(-1, 3) for p in border_parts], axis=0).astype(np.float32)
+        if border_pixels.size:
+            bg_mean = np.mean(border_pixels, axis=0)
+    except Exception:
+        bg_mean = None
+
+    K = 4
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
     _, labels, centers = cv2.kmeans(
         pixels, K, None, criteria, attempts=3, flags=cv2.KMEANS_PP_CENTERS
     )
     counts = np.bincount(labels.flatten(), minlength=K)
-    idx = int(np.argmax(counts))
-    # Input pixels are RGB; cv2.kmeans centers stay in the same channel order (not BGR).
-    cent = centers[idx]
+
+    # Prefer clusters that are not similar to the border/background color.
+    chosen_idx = None
+    if bg_mean is not None:
+        dists = [float(np.linalg.norm(centers[i] - bg_mean)) for i in range(centers.shape[0])]
+        BG_THRESHOLD = 40.0
+        candidates = [i for i in range(len(dists)) if dists[i] > BG_THRESHOLD]
+        if candidates:
+            chosen_idx = max(candidates, key=lambda i: counts[i])
+
+    # Fallback to largest cluster overall
+    if chosen_idx is None:
+        chosen_idx = int(np.argmax(counts))
+
+    cent = centers[chosen_idx]
     r, g, b = int(cent[0]), int(cent[1]), int(cent[2])
     r = max(0, min(255, r))
     g = max(0, min(255, g))
