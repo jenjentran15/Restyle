@@ -3,7 +3,17 @@
  * maps its response to Restyle wardrobe fields (category, color, season).
  */
 
-const FormData = require('form-data');
+let FormDataPkg = null;
+try {
+  // Prefer native WHATWG FormData + Blob (Node 18+). Fallback to form-data package.
+  if (typeof FormData !== 'undefined' && typeof Blob !== 'undefined') {
+    FormDataPkg = { native: true, FormData, Blob };
+  } else {
+    FormDataPkg = { native: false, FormData: require('form-data') };
+  }
+} catch (e) {
+  FormDataPkg = { native: false, FormData: require('form-data') };
+}
 
 const DEFAULT_BASE =
   process.env.PREDICT_SERVICE_URL || process.env.PYTHON_PREDICT_URL || 'http://127.0.0.1:8000';
@@ -92,11 +102,25 @@ async function callPredictService(buffer, filename, mimetype) {
     throw new Error('Image buffer is empty or too small');
   }
 
-  const form = new FormData();
-  form.append('file', buffer, {
-    filename: filename || 'upload.jpg',
-    contentType: mimetype || 'image/jpeg'
-  });
+  // Build multipart body. Use native WHATWG FormData+Blob when available to
+  // ensure the fetch implementation sets a correct Content-Type boundary.
+  let body;
+  let headers = {};
+  if (FormDataPkg.native) {
+    const fd = new FormDataPkg.FormData();
+    const blob = new FormDataPkg.Blob([buffer], { type: mimetype || 'image/jpeg' });
+    fd.append('file', blob, filename || 'upload.jpg');
+    body = fd;
+    // Let fetch set the Content-Type header for native FormData; do not set manually.
+  } else {
+    const fd = new FormDataPkg.FormData();
+    fd.append('file', buffer, {
+      filename: filename || 'upload.jpg',
+      contentType: mimetype || 'image/jpeg'
+    });
+    body = fd;
+    headers = fd.getHeaders();
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -104,8 +128,8 @@ async function callPredictService(buffer, filename, mimetype) {
   try {
     const res = await fetch(getPredictUrl(), {
       method: 'POST',
-      body: form,
-      headers: form.getHeaders(),
+      body,
+      headers,
       signal: controller.signal
     });
 
