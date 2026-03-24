@@ -112,7 +112,7 @@ const initializeDatabase = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS clothing_items (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id INTEGER,
         name VARCHAR(255) NOT NULL,
         category VARCHAR(50) NOT NULL,
         color VARCHAR(100) NOT NULL,
@@ -122,6 +122,31 @@ const initializeDatabase = async () => {
         image_url VARCHAR(500),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Ensure `user_id` column exists and has the proper foreign key/index.
+    // This makes the initialization idempotent and avoids errors when an
+    // older schema exists without the column.
+    await pool.query(`
+      ALTER TABLE clothing_items
+      ADD COLUMN IF NOT EXISTS user_id INTEGER;
+    `);
+
+    // Add foreign key constraint if it doesn't already exist.
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'fk_clothing_items_user_id'
+        ) THEN
+          BEGIN
+            ALTER TABLE clothing_items
+            ADD CONSTRAINT fk_clothing_items_user_id
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+          EXCEPTION WHEN duplicate_object THEN NULL; END;
+        END IF;
+      END$$;
     `);
 
     await pool.query(`
