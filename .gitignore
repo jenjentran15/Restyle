@@ -85,3 +85,5 @@ MANIFEST
 # OS
 Thumbs.db
 .DS_Store
+/.venv
+.venv/lib64
