@@ -33,19 +33,21 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import cv2
+from skimage.color import rgb2lab, deltaE_cie76
+
+CENTER_CROP_FRACTION = 10
+HIGHLIGHT_THRESHOLD = 230
+BORDER_WIDTH_FRACTION = 12
 
 # Optional ML dependency: keep service runnable even without torch.
 _TORCH_READY = False
 _TORCH_IMPORT_ERR = ""
 _DEVICE = "cpu"
-_MODEL = None
-_IMAGENET_LABELS: list[str] = []
-_PREPROCESS = None
+_MODEL = _IMAGENET_LABELS = _PREPROCESS = None
 
 try:
     import torch
     from torchvision.models import ResNet18_Weights, resnet18
-
     _DEVICE = str(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     _WEIGHTS = ResNet18_Weights.IMAGENET1K_V1
     _MODEL = resnet18(weights=_WEIGHTS).to(_DEVICE)
@@ -59,8 +61,6 @@ except Exception as e:  # pylint: disable=broad-except
 
 def _map_imagenet_to_clothing(label: str) -> str | None:
     """Map one ImageNet English label to a coarse clothing category (or None)."""
-    s = label.lower()
-
     patterns: list[tuple[re.Pattern[str], str]] = [
         (re.compile(r"\b(t[- ]?shirt|jersey|maillot)\b"), "t-shirt"),
         (re.compile(r"\b(tank\s*top|undershirt|vest)\b"), "tank top"),
@@ -81,10 +81,9 @@ def _map_imagenet_to_clothing(label: str) -> str | None:
         (re.compile(r"\b(backpack|handbag|purse|wallet|mailbag)\b"), "bag"),
     ]
     for pat, name in patterns:
-        if pat.search(s):
+        if pat.search(label.lower()):
             return name
     return None
-
 
 def _predict_clothing_category(pil_img: Image.Image) -> tuple[str, float, list[str]]:
     """Returns (category, confidence on chosen logit slice, top5 raw ImageNet labels)."""
@@ -97,69 +96,37 @@ def _predict_clothing_category(pil_img: Image.Image) -> tuple[str, float, list[s
     p_vals, p_idx = torch.topk(probs, topk)
     top_labels = [_IMAGENET_LABELS[i] for i in p_idx.tolist()]
 
-    best_cat: str | None = None
-    best_conf = 0.0
-    for i in range(topk):
-        lbl = _IMAGENET_LABELS[p_idx[i].item()]
-        cat = _map_imagenet_to_clothing(lbl)
-        if cat is not None:
-            conf = float(p_vals[i].item())
-            if best_cat is None or conf > best_conf:
-                best_cat = cat
-                best_conf = conf
+    best_cat, best_conf = None, 0.0
+    for rank, idx in enumerate(p_idx.tolist()):
+        cat = _map_imagenet_to_clothing(_IMAGENET_LABELS[idx])
+        if cat and float(p_vals[rank]) > best_conf:
+            best_cat, best_conf = cat, float(p_vals[rank])
+    return (best_cat or "clothing item"), best_conf, top_labels[:5]
 
-    if best_cat is None:
-        # Fallback: describe as generic clothing so downstream still gets a string
-        return "clothing item", float(p_vals[0].item()), top_labels[:5]
-
-    return best_cat, best_conf, top_labels[:5]
-
-
-def _clothing_category_heuristics(pil_img: Image.Image) -> str:
-    img = pil_img.convert("RGB")
-    width, height = img.size
-    aspect = height / max(width, 1)
-    if aspect > 1.6:
-            aspect_vote = "dress"
-    elif aspect > 1.1:
-        aspect_vote = "top"
-    elif aspect < 0.7:
-        aspect_vote = "pants"
-    else:
-        aspect_vote = "shirt"
-
-    gray = np.array(img.convert("L"))
-    edges = cv2.Canny(gray, 80, 160)
-    edge_density = float(edges.mean())
-
-    if edge_density > 12:
-        edge_vote = "jacket"
-    elif edge_density > 6:
-        edge_vote = "shirt"
-    else:
-        edge_vote = "t-shirt"
-
-    arr = np.array(img)
-    mid = height // 2
-    upper_sat = float(cv2.cvtColor(arr[:mid], cv2.COLOR_RGB2HSV)[..., 1].mean())
-    lower_sat = float(cv2.cvtColor(arr[mid:], cv2.COLOR_RGB2HSV)[..., 1].mean())
-    if lower_sat > upper_sat * 1.3:
-        zone_vote = "pants"
-    elif upper_sat > lower_sat * 1.3:
-        zone_vote = "top"
-    else:
-        zone_vote = "shirt"
-    
-    votes: dict[str, float] = {}
-    for cat, weight in [(aspect_vote, 1.5), (edge_vote, 1.0), (zone_vote, 1.0)]:
-        votes[cat] = votes.get(cat,0) + weight
-    winner = max(votes, key=lambda k: votes[k])
-    print(f"[PIXEL HEURISTIC] aspect={aspect_vote}, edge={edge_vote}, zone={zone_vote} -> {winner}")
-    return winner
+def _guess_category_from_filename(filename: str | None) -> str:
+    """Lightweight fallback when torch isn't installed."""
+    name = (filename or "").lower()
+    rules = [
+        (r"t[-_ ]?shirt|tee", "t-shirt"),
+        (r"tank", "tank top"),
+        (r"hoodie|sweater", "sweater"),
+        (r"shirt|blouse", "shirt"),
+        (r"jeans?", "jeans"),
+        (r"shorts?", "shorts"),
+        (r"pants?|trousers?", "pants"),
+        (r"skirt", "skirt"),
+        (r"dress", "dress"),
+        (r"jacket|coat|blazer", "jacket"),
+        (r"shoe|sneaker|boot|loafer|sandal", "shoes"),
+    ]
+    for pattern, category in rules:
+        if re.search(pattern, name):
+            return category
+    return "top"
 
 # --- Dominant color (OpenCV k-means) + name mapping ---
 
-_NAMED_RGB: list[tuple[str, tuple[int, int, int]]] = [
+_NAMED_RGB = [
     ("white", (255, 255, 255)),
     ("cream", (245, 245, 220)),
     ("beige", (245, 245, 220)),
@@ -180,54 +147,48 @@ _NAMED_RGB: list[tuple[str, tuple[int, int, int]]] = [
 ]
 
 
-def _rgb_lab(red: int, green: int, blue: int) -> np.ndarray:
-    """Convert a single sRGB triplet(0-255) to CIE LAB via OpenCV"""
-    px = np.array([[[blue, green, red]]], dtype=np.uint8)
-    return cv2.cvtColor(px, cv2.COLOR_BGR2LAB)[0,0].astype(np.float32)
-
-_NAMED_LAB: list[tuple[str, np.ndarray]] = [
-    (name, _rgb_lab(*rgb)) for name, rgb in _NAMED_RGB
-]
-
-def _lab_nearest_color(lab_vec: np.ndarray) -> str:
-    """Return the closest named color by LAB Euclidean distance"""
-    best_name, best_d = "unknown", 1e9
-    for name, ref in _NAMED_LAB:
-        d = float(np.linalg.norm(lab_vec - ref))
-        if d < best_d:
-            best_d, best_name = d, name
-    return best_name
+def _lab_distance(rgb_a: np.ndarray, rgb_b: tuple[int, int, int]) -> float:
+    # rgb2lab expects float values in [0, 1] and a (1, 1, 3) shaped array
+    lab_a = rgb2lab(rgb_a.reshape(1, 1, 3) / 255.0)
+    lab_b = rgb2lab(np.array(rgb_b, dtype=np.float32).reshape(1, 1, 3) / 255.0)
+    return float(deltaE_cie76(lab_a, lab_b).item())
 
 def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int]]:
     rgb = np.asarray(pil_img.convert("RGB"))
     h, w, _ = rgb.shape
     # Focus center region (often the garment)
-    ch, cw = h // 4, w // 4
-    crop = rgb[ch : h - ch, cw : w - cw]
+    ch, cw = h // CENTER_CROP_FRACTION, w // CENTER_CROP_FRACTION
+    crop = rgb[ch : h - ch, cw : w - cw].reshape(-1, 3).astype(np.float32)
     if crop.size == 0:
-        crop = rgb
-    crop_bgr = cv2.cvtColor(crop, cv2.COLOR_RGB2BGR)
-    crop_lab = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(np.float32)
-
+        crop = rgb.reshape(-1, 3).astype(np.float32)
+    
     # Estimate background color by sampling the image border
-    bw = max(8, min(h, w) // 12)
-    bg_mean = None
+    is_highlight = np.all(crop > HIGHLIGHT_THRESHOLD, axis=1)
+    crop = crop[~is_highlight]
+    if crop.size == 0:
+        crop = rgb.reshape(-1, 3).astype(np.float32)
+
+    bw = max(8, min(h,w) // BORDER_WIDTH_FRACTION)
     try:
-        border_parts = [rgb[:bw, :], rgb[h-bw:,:], rgb[:,:bw], rgb[:,w-bw:]]
-        border_pixels = np.concatenate([p.reshape(-1, 3) for p in border_parts], axis=0)
-        border_bgr = cv2.cvtColor(border_pixels.reshape(-1, 1, 3), cv2.COLOR_RGB2BGR).reshape(-1, 3)
-        border_lab = cv2.cvtColor(border_pixels.reshape(-1, 1, 3).astype(np.uint8), cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(np.float32)
-        bg_mean = border_lab.mean(axis=0)
-        print(f"[COLOR] Border bg mode enabled: bg_mean RGB ~ ({bg_mean[0]:.0f}, {bg_mean[1]:.0f}, {bg_mean[2]:.0f})")
+        border = np.concatenate([rgb[:bw,:].reshape(-1, 3), rgb[h-bw:, :].reshape(-1, 3),
+                                 rgb[:, :bw].reshape(-1, 3), rgb[:, w-bw:].reshape(-1, 3),
+        ]).astype(np.uint8)
+        if border.size:
+            quantized = (border // 10) * 10
+            unique, counts_b = np.unique(quantized.reshape(-1, 3), axis=0, return_counts=True)
+            bg_mean = unique[np.argmax(counts_b)].astype(np.float32)
+            print(f"[COLOR] Border bg mode enabled: bg_mean RGB ~ ({bg_mean[0]:.0f}, {bg_mean[1]:.0f}, {bg_mean[2]:.0f})")
+        else:
+            bg_mean = None
     except Exception as e:
         print(f"[COLOR] Warning: border sampling failed: {e}")
         bg_mean = None
 
-    K = 4
+    K = 6
     np.random.seed(42)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
     _, labels, centers = cv2.kmeans(
-        crop_lab, K, None, criteria, attempts=3, flags=cv2.KMEANS_PP_CENTERS
+        crop, K, None, criteria, attempts=3, flags=cv2.KMEANS_PP_CENTERS
     )
     counts = np.bincount(labels.flatten(), minlength=K)
 
@@ -235,44 +196,37 @@ def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int
     chosen_idx = None
 
     if bg_mean is not None:
-        BG_THRESHOLD = 20.0
-        dists = [float(np.linalg.norm(centers[i] - bg_mean)) for i in range(K)]
-        candidates = [i for i in range(K) if dists[i] > BG_THRESHOLD]
-        if candidates:
-            chosen_idx = max(candidates, key=lambda i: counts[i])
-            print(f"[COLOR] Using bg-excluded cluster (idx={chosen_idx}, dist from bg={dists[chosen_idx]:.1f})")
-
+        BG_THRESHOLD = 15.0
+        dists = [_lab_distance(centers[i], tuple(bg_mean.astype(int))) for i in range(len(centers))]
+        candidates = [i for i, d in enumerate(dists) if d > BG_THRESHOLD]
+        chosen_idx = max(candidates, key=lambda i: counts[i]) if candidates else int(np.argmax(counts))
+        print(f"[COLOR] Using bg-excluded cluster (idx={chosen_idx}, dist from bg={dists[chosen_idx]:.1f})")
     # Fallback to largest cluster overall
-    if chosen_idx is None:
+    else:
         chosen_idx = int(np.argmax(counts))
         print(f"[COLOR] Fallback to largest cluster (bg-exclusion found no candidates)")
 
-    lab_pixel = np.array([[[
-        int(np.clip(centers[chosen_idx][0], 0, 255)),
-        int(np.clip(centers[chosen_idx][1], 0, 255)),
-        int(np.clip(centers[chosen_idx][2], 0, 255)),
-    ]]], dtype=np.uint8)
-    rgb_out = cv2.cvtColor(cv2.cvtColor(lab_pixel, cv2.COLOR_LAB2BGR), cv2.COLOR_BGR2RGB)[0,0]
-    red, green, blue = int(rgb_out[0]), int(rgb_out[1]), int(rgb_out[2])
+    red = int(np.clip(centers[chosen_idx][0], 0, 255))
+    green = int(np.clip(centers[chosen_idx][1], 0, 255))
+    blue = int(np.clip(centers[chosen_idx][2], 0, 255))
 
-    color_name = _lab_nearest_color(centers[chosen_idx].astype(np.float32))
+    rgb_vec = np.array([red, green, blue], dtype=np.float32)
+    color_name = min(_NAMED_RGB, key=lambda nc: _lab_distance(rgb_vec, nc[1]))[0]
     print(f"[COLOR] Result: {color_name} (RGB {red}, {green}, {blue})")
     return color_name, (red, green, blue)
 
 
 def _infer_season(category: str, color_name: str) -> str:
-    c = category.lower()
-    col = color_name.lower()
-
+    cat, color = category.lower(), color_name.lower()
     summerish = {"t-shirt", "tank top", "shorts", "dress", "shirt"}
     winterish = {"jacket", "sweater", "coat"}
-    if any(x in c for x in winterish):
+    if any(x in cat for x in winterish):
         return "winter"
-    if any(x in c for x in summerish):
+    if any(x in cat for x in summerish):
         return "summer"
-    if col in ("white", "yellow", "light blue", "cream", "beige", "pink", "orange"):
+    if color in ("white", "yellow", "light blue", "cream", "beige", "pink", "orange"):
         return "summer"
-    if col in ("navy", "black", "brown", "gray", "grey"):
+    if color in ("navy", "black", "brown", "gray", "grey"):
         return "all-season"
     return "all-season"
 
@@ -288,7 +242,6 @@ def _build_description(season: str, color_name: str, category: str) -> str:
         return f"This is an all-season {color_name} {pretty}."
     return f"This is a {season}-time {color_name} {pretty}."
 
-
 app = FastAPI(title="Restyle clothing predictor", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -297,7 +250,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -334,15 +286,11 @@ async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
             if top5:
                 print(f"[PREDICT] Top-5 ImageNet hints: {top5[:3]}")
         else:
-            print(f"[PREDICT] Mode: PIXEL HEURISTIC")
-            category = _clothing_category_heuristics(pil)
-            conf = 0.0
-            top5 = []
-            mode_note = (
-                "Torch not installed; using category via pixel-based heuristics. "
-                "Users can edit the fields manually."
-            )
+            print(f"[PREDICT] Mode: LIGHTWEIGHT (no torch)")
+            category, conf, top5 = _guess_category_from_filename(file.filename), 0.0, []
+            mode_note = "Torch not installed; category guessed from filename. Users can edit the fields manually."
             print(f"[PREDICT] Category (from heuristic): {category}")
+            
         color_name, rgb = _dominant_color_name(pil)
         print(f"[PREDICT] Color: {color_name} (RGB: {rgb})")
         season = _infer_season(category, color_name)
