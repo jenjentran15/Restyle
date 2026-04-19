@@ -1,47 +1,34 @@
-/* Authentication.js - login/signup form with client-side validation. */
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import '../styles/Authentication.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000'; //setups url
+const INITIAL_STATE = { name: '', email: '', password: '', confirmPassword: '' };
 
 function Authentication() {
   const navigate = useNavigate();
-
-  const [accData, setAccData] = useState({
-    name: '',
-    password: '',
-    confirmPassword: '',
-    email: ''
-  });
   const [isLogin, setIsLogin] = useState(true);
+  const [formData, setFormData] = useState(INITIAL_STATE);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // update account form state whenever an input changes
   const handleChange = (e) => {
-    setAccData({...accData, [e.target.name]: e.target.value});
-    setError('');
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    if (error) setError('');
   };
 
-  // submit login or signup form data to the server
-  const handleSubmit = async (e) => { //async allows await and e stands for event
-    e.preventDefault(); //This stops the form from refreshing the page.
-    setError('');
+  const validate = () => {
+    if (formData.password.length < 6) return 'Password must be at least 6 characters';
+    if (!isLogin && formData.password !== formData.confirmPassword) return 'Passwords do not match';
+    return null;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const validation_err = validate()
+    if (validation_err) return setError(validation_err);
+
     setLoading(true);
-
-    // Validation
-    if (!isLogin && accData.password !== accData.confirmPassword) {
-      setError('Passwords do not match');
-      setLoading(false);
-      return;
-    }
-
-    if (accData.password.length < 6) {
-      setError('Password must contain at least 6 characters');
-      setLoading(false);
-      return;
-    }
 
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
@@ -49,21 +36,17 @@ function Authentication() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json',},
         body: JSON.stringify({
-          email: accData.email,
-          password: accData.password,
-          name: accData.name
+          email: formData.email,
+          password: formData.password,
+          ...(isLogin ? {} : { name: formData.name }),
         }),
       });
       const data = await response.json();
 
-      if (response.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        navigate('/');
-      } else {
-        setError(data.message || 'Authentication failed');
-      }
+      if (!response.ok) { setError(data.message || 'Authentication failed'); }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));  
+      navigate('/');
     } catch (err) {
       setError('Connection error. Please try again.');
       console.error('Auth error:', err);
@@ -73,14 +56,9 @@ function Authentication() {
   };
 
   const toggleMode = () => {
-    setIsLogin(!isLogin);
+    setIsLogin(prev => !prev);
+    setFormData(INITIAL_STATE);
     setError('');
-    setAccData({
-      email: '',
-      password: '',
-      confirmPassword: '',
-      name: ''
-    });
   };
 
   return (
@@ -112,10 +90,10 @@ function Authentication() {
                     type="text"
                     id="name"
                     name="name"
-                    value={accData.name}
+                    value={formData.name}
                     onChange={handleChange}
                     placeholder="Enter your name"
-                    required={!isLogin}
+                    required
                     disabled={loading}
                   />
                 </div>
@@ -127,7 +105,7 @@ function Authentication() {
                   type="email"
                   id="email"
                   name="email"
-                  value={accData.email}
+                  value={formData.email}
                   onChange={handleChange}
                   placeholder="Enter your email"
                   required
@@ -141,7 +119,7 @@ function Authentication() {
                   type="password"
                   id="password"
                   name="password"
-                  value={accData.password}
+                  value={formData.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
                   required
@@ -156,10 +134,10 @@ function Authentication() {
                     type="password"
                     id="confirmPassword"
                     name="confirmPassword"
-                    value={accData.confirmPassword}
+                    value={formData.confirmPassword}
                     onChange={handleChange}
                     placeholder="Confirm your password"
-                    required={!isLogin}
+                    required
                     disabled={loading}
                   />
                 </div>

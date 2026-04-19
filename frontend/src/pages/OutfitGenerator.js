@@ -17,7 +17,6 @@ function OutfitGenerator() {
 
   const handleGenerate = async () => {
     setLoading(true);
-
     try {
       const token = localStorage.getItem('token');
 
@@ -38,7 +37,7 @@ function OutfitGenerator() {
       setResults(data);
     } catch (error) {
       console.error('Error generating outfits:', error);
-      alert('Failed to generate outfits');
+      alert('Please add items in your wardrobe');
     } finally {
       setLoading(false);
     }

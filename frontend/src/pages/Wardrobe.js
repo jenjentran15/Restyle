@@ -25,9 +25,7 @@ function Wardrobe() {
   const [scanError, setScanError] = useState(null);
   const [scanSuccess, setScanSuccess] = useState(null);
 
-  useEffect(() => {
-    fetchClothingItems();
-  }, []);
+  useEffect(() => { fetchClothingItems(); }, []);
 
   const fetchClothingItems = async () => {
     setLoading(true);
@@ -75,32 +73,23 @@ function Wardrobe() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewItem((prev) => ({
-      ...prev,
-      [name]: value
-    }));
+    setNewItem((prev) => ({ ...prev, [name]: value}));
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0] || null;
-    setNewItem((prev) => ({
-      ...prev,
-      image: file
-    }));
+    setNewItem((prev) => ({...prev, image: file}));
     setScanError(null);
     setScanSuccess(null);
   };
 
   const handleScanPhoto = async () => {
-    if (!newItem.image) {
-      alert('Choose an image first, then click scan.');
-      return;
-    }
+    if (!newItem.image) return alert('Choose an image first, then click scan.');
+
     const token = localStorage.getItem('token');
-    if (!token) {
-      alert('Please log in to scan photos.');
-      return;
-    }
+
+    if (!token) return alert('Please log in to scan photos.');
+
     setScanError(null);
     setScanSuccess(null);
     setScanLoading(true);
@@ -109,16 +98,12 @@ function Wardrobe() {
       formData.append('image', newItem.image);
       const response = await fetch(`${API_URL}/api/predict-clothing`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+        headers: { Authorization: `Bearer ${token}`},
         body: formData
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.ok === false) {
-        const msg =
-          data.message ||
-          data.error ||
+        const msg = data.message || data.error ||
           (response.status === 503
             ? 'Prediction service is not running. Start: python clothing_predict_server.py'
             : 'Scan failed');
@@ -153,15 +138,13 @@ function Wardrobe() {
     e.preventDefault();
 
     if (!newItem.name || !newItem.color || !newItem.category) {
-      alert('Please fill in all required fields');
-      return;
+      return alert('Please fill in all required fields');
     }
 
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('Please log in before adding items.');
-        return;
+        return alert('Please log in before adding items.');
       }
       let response;
 
@@ -177,9 +160,7 @@ function Wardrobe() {
 
         response = await fetch(`${API_URL}/api/upload-clothing`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
+          headers: { Authorization: `Bearer ${token}`},
           body: formData
         });
       } else {
@@ -218,9 +199,7 @@ function Wardrobe() {
       setScanSuccess(null);
 
       const fileInput = document.getElementById('item-image-input');
-      if (fileInput) {
-        fileInput.value = '';
-      }
+      if (fileInput) fileInput.value = '';
 
       setShowAddForm(false);
       fetchClothingItems();
@@ -238,9 +217,7 @@ function Wardrobe() {
 
         const response = await fetch(`${API_URL}/api/clothing/${id}`, {
           method: 'DELETE',
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}`}
         });
 
         if (!response.ok) {
@@ -259,22 +236,6 @@ function Wardrobe() {
     <div className="inventory-page">
       <div className="container">
         <h2>My Wardrobe</h2>
-
-        {error && (
-          <div
-            className="error-banner"
-            style={{
-              background: '#fee',
-              color: '#c33',
-              padding: '1rem',
-              borderRadius: '8px',
-              marginBottom: '1rem'
-            }}
-          >
-            Error: {error}
-          </div>
-        )}
-
         <div className="wardrobe-actions">
           <button
             type="button"
@@ -430,19 +391,15 @@ function Wardrobe() {
                   rows="3"
                 />
               </div>
-
-              <button type="submit" className="btn btn-primary">
-                Add Item
-              </button>
+              <button type="submit" className="btn btn-primary"> Add Item </button>
             </form>
           </div>
         )}
 
         <div className="items-section">
           <h3>Your Items ({items.length})</h3>
-          {loading ? (
-            <p>Loading your wardrobe...</p>
-          ) : items.length === 0 ? (
+          {loading ? ( <p>Loading your wardrobe...</p>) : items.length === 0 ? 
+          (
             <p className="empty-state">
               No items in your wardrobe yet. Add your first item above!
             </p>
