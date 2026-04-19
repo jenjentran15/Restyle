@@ -15,21 +15,17 @@ try {
   FormDataPkg = { native: false, FormData: require('form-data') };
 }
 
-const DEFAULT_BASE =
-  process.env.PREDICT_SERVICE_URL || process.env.PYTHON_PREDICT_URL || 'http://127.0.0.1:8000';
+const DEFAULT_BASE = process.env.PREDICT_SERVICE_URL || process.env.PYTHON_PREDICT_URL || 'http://127.0.0.1:8000';
 const TIMEOUT_MS = Number(process.env.PREDICT_SERVICE_TIMEOUT_MS) || 30000;
 
-function getPredictUrl() {
-  return `${String(DEFAULT_BASE).replace(/\/$/, '')}/predict-clothing`;
-}
+function getPredictUrl() { return `${String(DEFAULT_BASE).replace(/\/$/, '')}/predict-clothing`;}
 
 /**
  * Maps coarse AI category strings to wardrobe category values used by the UI + outfitGenerator.
  */
 function mapCategoryToWardrobe(cat) {
   const c = (cat || '').toLowerCase().trim();
-  if (!c) return 'top';
-  if (c === 'clothing item') return 'top';
+  if (!c || c === 'clothing item') return 'top';
 
   const tops = new Set(['t-shirt', 'tank top', 'sweater', 'shirt', 'top', 'blouse', 'hoodie']);
   const bottoms = new Set(['jeans', 'shorts', 'pants', 'trousers', 'bottom', 'skirt']);
@@ -63,8 +59,7 @@ function buildSuggestedName(normalized) {
         ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase()
         : 'Item';
   if (!color) return prettyType;
-  const colorTitle = color.charAt(0).toUpperCase() + color.slice(1).toLowerCase();
-  return `${colorTitle} ${prettyType}`;
+  return `${color.charAt(0).toUpperCase() + color.slice(1).toLowerCase()} ${prettyType}`;
 }
 
 function normalizePredictionPayload(raw) {
