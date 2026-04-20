@@ -4,7 +4,7 @@ function normalizeCategory(category) {
 }
 
 function isTop(category) {
-  return ['top', 'shirt', 't-shirt', 'tee', 'blouse', 'sweater', 'hoodie'].includes(normalizeCategory(category));
+  return ['top', 'shirt', 't-shirt', 'tee', 'blouse', 'sweater', 'hoodie', 'tank top'].includes(normalizeCategory(category));
 }
 
 function isBottom(category) {
