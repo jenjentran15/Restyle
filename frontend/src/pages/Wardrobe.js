@@ -21,6 +21,9 @@ function Wardrobe() {
     notes: '',
     image: null
   });
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanError, setScanError] = useState(null);
+  const [scanSuccess, setScanSuccess] = useState(null);
 
   useEffect(() => {
     fetchClothingItems();
@@ -32,12 +35,25 @@ function Wardrobe() {
 
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setItems([]);
+        setError('Please log in to view your wardrobe.');
+        return;
+      }
 
       const response = await fetch(`${API_URL}/api/clothing`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+      if (response.status === 401 || response.status === 403) {
+        setItems([]);
+        setError('Your session expired. Please log in again.');
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Failed to load wardrobe (HTTP ${response.status})`);
+      }
 
       const data = await response.json();
 
@@ -71,6 +87,66 @@ function Wardrobe() {
       ...prev,
       image: file
     }));
+    setScanError(null);
+    setScanSuccess(null);
+  };
+
+  const handleScanPhoto = async () => {
+    if (!newItem.image) {
+      alert('Choose an image first, then click scan.');
+      return;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please log in to scan photos.');
+      return;
+    }
+    setScanError(null);
+    setScanSuccess(null);
+    setScanLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', newItem.image);
+      const response = await fetch(`${API_URL}/api/predict-clothing`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) {
+        const msg =
+          data.message ||
+          data.error ||
+          (response.status === 503
+            ? 'Prediction service is not running. Start: python clothing_predict_server.py'
+            : 'Scan failed');
+        throw new Error(msg);
+      }
+      setNewItem((prev) => ({
+        ...prev,
+        name: data.suggestedName || prev.name,
+        category: data.category || prev.category,
+        color: data.color || prev.color,
+        season: data.season || prev.season
+      }));
+      const summary =
+        data.description ||
+        `${data.rawCategory || data.category}, ${data.color}, ${data.season}`;
+      const conf = data.confidence;
+      const confOk = typeof conf === 'number' && !Number.isNaN(conf);
+      setScanSuccess(
+        confOk
+          ? `${summary} (model confidence ${Math.round(Math.min(conf, 1) * 100)}%)`
+          : summary
+      );
+    } catch (err) {
+      console.error('Scan error:', err);
+      setScanError(err.message || 'Scan failed');
+    } finally {
+      setScanLoading(false);
+    }
   };
 
   const handleAddItem = async (e) => {
@@ -83,6 +159,10 @@ function Wardrobe() {
 
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in before adding items.');
+        return;
+      }
       let response;
 
       if (newItem.image) {
@@ -134,6 +214,8 @@ function Wardrobe() {
         notes: '',
         image: null
       });
+      setScanError(null);
+      setScanSuccess(null);
 
       const fileInput = document.getElementById('item-image-input');
       if (fileInput) {
@@ -236,6 +318,29 @@ function Wardrobe() {
                   accept="image/*"
                   onChange={handleFileChange}
                 />
+                <div style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleScanPhoto}
+                    disabled={scanLoading || !newItem.image}
+                  >
+                    {scanLoading ? 'Scanning…' : 'Scan photo & fill fields'}
+                  </button>
+                  <span style={{ fontSize: '0.9rem', color: '#555' }}>
+                    Lightweight local scan (Python server). Optional: add PyTorch later for better type detection.
+                  </span>
+                </div>
+                {scanError && (
+                  <p style={{ color: '#c33', marginTop: '0.5rem', fontSize: '0.9rem' }} role="alert">
+                    {scanError}
+                  </p>
+                )}
+                {scanSuccess && (
+                  <p style={{ color: '#1a7f37', marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                    {scanSuccess} — edit below if anything looks wrong.
+                  </p>
+                )}
               </div>
 
               <div className="form-row">
@@ -246,12 +351,28 @@ function Wardrobe() {
                     value={newItem.category}
                     onChange={handleInputChange}
                   >
-                    <option value="top">Top</option>
-                    <option value="bottom">Bottom</option>
-                    <option value="dress">Dress</option>
-                    <option value="jacket">Jacket</option>
-                    <option value="shoes">Shoes</option>
-                    <option value="accessory">Accessory</option>
+                    <optgroup label="Tops">
+                      <option value="t-shirt">T-shirt</option>
+                      <option value="shirt">Shirt</option>
+                      <option value="blouse">Blouse</option>
+                      <option value="sweater">Sweater</option>
+                      <option value="hoodie">Hoodie</option>
+                      <option value="tank top">Tank top</option>
+                      <option value="top">Top (generic)</option>
+                    </optgroup>
+                    <optgroup label="Bottoms">
+                      <option value="jeans">Jeans</option>
+                      <option value="pants">Pants</option>
+                      <option value="shorts">Shorts</option>
+                      <option value="skirt">Skirt</option>
+                      <option value="bottom">Bottom (generic)</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                      <option value="dress">Dress</option>
+                      <option value="jacket">Jacket / coat</option>
+                      <option value="shoes">Shoes</option>
+                      <option value="accessory">Accessory</option>
+                    </optgroup>
                   </select>
                 </div>
 
