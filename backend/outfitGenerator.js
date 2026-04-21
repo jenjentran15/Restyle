@@ -1,3 +1,8 @@
+// Outfit generator utilities
+// - Small pure-JS helpers used by the backend to score and assemble outfits
+// - Entry point exported as `beamSearchGenerateOutfits` (used by server.js)
+// Keep this file focused on selection heuristics and lightweight scoring.
+
 function normalizeCategory(category) {
   if (!category) return '';
   return category.toLowerCase().trim();
