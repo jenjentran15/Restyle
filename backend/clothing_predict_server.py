@@ -64,20 +64,33 @@ if _TORCH_READY:
         _TORCHVISION_READY = False
         print(f"[INIT] torchvision/resnet ✗  err={type(e).__name__}: {e}")
 
-# Try CLIP only if torch is OK
-if _TORCH_READY:
+def load_clip(on_demand: bool = True) -> bool:
+    """Attempt to load CLIP model and processor on demand.
+
+    Returns True on success and sets `_CLIP_READY`. Does not raise on typical import errors;
+    instead records the error in `_CLIP_IMPORT_ERR` and returns False.
+    """
+    global _CLIP_READY, _CLIP_MODEL, _CLIP_PROCESSOR, _CLIP_IMPORT_ERR
+    if _CLIP_READY:
+        return True
     try:
+        # Import inside function to avoid startup-time failures.
         from transformers import CLIPModel, CLIPProcessor  # type: ignore
 
         _CLIP_MODEL = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(_DEVICE)
         _CLIP_PROCESSOR = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
         _CLIP_MODEL.eval()
         _CLIP_READY = True
-        print("[INIT] CLIP ✓")
+        print("[INIT] CLIP ✓ (loaded on demand)")
+        return True
     except Exception as e:  # pylint: disable=broad-except
         _CLIP_IMPORT_ERR = str(e)
         _CLIP_READY = False
-        print(f"[INIT] CLIP ✗  err={type(e).__name__}: {e}")
+        if "triton" in _CLIP_IMPORT_ERR.lower():
+            print("[INIT] CLIP ✗  triton-related error detected. Consider uninstalling triton in WSL: 'pip3 uninstall triton -y'")
+        else:
+            print(f"[INIT] CLIP ✗  err={type(e).__name__}: {e}")
+        return False
 
 
 # ----------------------------
@@ -220,6 +233,17 @@ _NAMED = [
     ("cream", (250, 245, 230)),
 ]
 
+# Precompute LAB representations for named colors to use perceptual distance
+_NAMED_LAB: list[tuple[str, np.ndarray]] = []
+try:
+    for name, rgb in _NAMED:
+        arr = np.uint8([[list(rgb)]])  # shape (1,1,3)
+        lab = cv2.cvtColor(arr, cv2.COLOR_RGB2LAB)[0, 0].astype(np.float32)
+        _NAMED_LAB.append((name, lab))
+except Exception:
+    # cv2 may not be available at import time in some environments; leave empty
+    _NAMED_LAB = []
+
 
 def _garment_mask_grabcut(pil_img: Image.Image) -> np.ndarray:
     """
@@ -231,16 +255,28 @@ def _garment_mask_grabcut(pil_img: Image.Image) -> np.ndarray:
     h, w = bgr.shape[:2]
 
     # Rectangle inset from edges (assumes garment roughly centered)
-    rect = (int(0.08 * w), int(0.08 * h), int(0.84 * w), int(0.84 * h))
+    inset_x = max(2, int(0.06 * w))
+    inset_y = max(2, int(0.06 * h))
+    rect = (inset_x, inset_y, max(1, w - 2 * inset_x), max(1, h - 2 * inset_y))
 
     mask = np.zeros((h, w), np.uint8)
     bgdModel = np.zeros((1, 65), np.float64)
     fgdModel = np.zeros((1, 65), np.float64)
 
-    cv2.grabCut(bgr, mask, rect, bgdModel, fgdModel, 5, cv2.GC_INIT_WITH_RECT)
-
-    fg = (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)
-    return fg
+    # Run a few more iterations to stabilize the mask on noisy backgrounds
+    try:
+        cv2.grabCut(bgr, mask, rect, bgdModel, fgdModel, 7, cv2.GC_INIT_WITH_RECT)
+        fg = (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)
+        # Morphological clean-up to remove small false positive regions
+        if fg.sum() > 0:
+            fg = fg.astype(np.uint8) * 255
+            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+            fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, kernel)
+            fg = fg > 0
+        return fg
+    except Exception:
+        # If GrabCut fails for any reason, return an empty mask to trigger fallback
+        return np.zeros((h, w), dtype=bool)
 
 
 def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int]]:
@@ -266,20 +302,63 @@ def _dominant_color_name(pil_img: Image.Image) -> tuple[str, tuple[int, int, int
     # 3) K-means on garment pixels
     K = 4
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0)
-    _, labels, centers = cv2.kmeans(pixels, K, None, criteria, 3, cv2.KMEANS_PP_CENTERS)
-    counts = np.bincount(labels.flatten(), minlength=K)
-    cent = centers[int(np.argmax(counts))]
+    try:
+        _, labels, centers = cv2.kmeans(pixels, K, None, criteria, 3, cv2.KMEANS_PP_CENTERS)
+        counts = np.bincount(labels.flatten(), minlength=K)
+        cent = centers[int(np.argmax(counts))]
+    except Exception:
+        # Fall back to simple average if kmeans fails
+        cent = pixels.mean(axis=0)
 
     r, g, b = [int(x) for x in cent]
     r, g, b = [max(0, min(255, v)) for v in (r, g, b)]
 
-    # More aggressive "white" rule (helps warm lighting)
-    if r >= 225 and g >= 225 and b >= 225:
+    # Quick heuristics using HSV/Value to catch obvious white/black/gray
+    samp = np.uint8([[[r, g, b]]])
+    hsv = cv2.cvtColor(samp, cv2.COLOR_RGB2HSV)[0, 0]
+    h_val, s_val, v_val = int(hsv[0]), int(hsv[1]), int(hsv[2])
+
+    # Black / near-black
+    if v_val <= 40:
+        return "black", (r, g, b)
+    # White / near-white (bright, low saturation)
+    if v_val >= 230 and s_val <= 30:
         return "white", (r, g, b)
 
-    vec = np.array([r, g, b], dtype=np.float32)
-    best = min(_NAMED, key=lambda item: float(np.linalg.norm(vec - np.array(item[1], dtype=np.float32))))
-    return best[0], (r, g, b)
+    # Use hue ranges for primary colors when saturation is strong
+    if s_val >= 40:
+        # hue in OpenCV is 0-179
+        if (h_val >= 20 and h_val <= 35):
+            return "yellow", (r, g, b)
+        if (h_val >= 10 and h_val < 20):
+            return "orange", (r, g, b)
+        if (h_val >= 36 and h_val <= 85):
+            return "green", (r, g, b)
+        if (h_val >= 86 and h_val <= 130):
+            return "blue", (r, g, b)
+        if (h_val >= 131 and h_val <= 160):
+            return "purple", (r, g, b)
+        # reds wrap around
+        if h_val <= 10 or h_val >= 170:
+            return "red", (r, g, b)
+
+    # Fallback: use perceptual LAB distance to named palette
+    if _NAMED_LAB:
+        sample_lab = cv2.cvtColor(np.uint8([[[r, g, b]]]), cv2.COLOR_RGB2LAB)[0, 0].astype(np.float32)
+        best_name = "unknown"
+        best_d = float('inf')
+        for name, lab in _NAMED_LAB:
+            d = float(np.linalg.norm(sample_lab - lab))
+            if d < best_d:
+                best_d = d
+                best_name = name
+        # Small tweak: if distance is large, prefer 'unknown'
+        if best_d > 40.0:
+            return "unknown", (r, g, b)
+        return best_name, (r, g, b)
+
+    # Last resort
+    return "unknown", (r, g, b)
 
 
 def _infer_season(category: str, color_name: str) -> str:
@@ -324,6 +403,74 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/debug/status")
+def debug_status() -> dict[str, Any]:
+    """Return detailed import/runtime diagnostics and recommendations."""
+    import sys
+
+    imports: dict[str, str] = {}
+    try:
+        import torch as _t
+
+        imports["torch"] = f"✓ {_t.__version__}"
+    except Exception as e:  # pylint: disable=broad-except
+        imports["torch"] = f"✗ {e}"
+
+    try:
+        import torchvision as _tv
+
+        imports["torchvision"] = f"✓ {_tv.__version__}"
+    except Exception as e:  # pylint: disable=broad-except
+        imports["torchvision"] = f"✗ {e}"
+
+    try:
+        import transformers as _tr
+
+        imports["transformers"] = f"✓ {_tr.__version__}"
+    except Exception as e:  # pylint: disable=broad-except
+        imports["transformers"] = f"✗ {e}"
+
+    try:
+        import triton as _tri
+
+        imports["triton"] = f"✓ {_tri.__version__}"
+    except Exception as e:  # pylint: disable=broad-except
+        imports["triton"] = f"✗ {e}"
+
+    try:
+        import PIL as _p
+
+        imports["pillow"] = f"✓ {_p.__version__}"
+    except Exception as e:  # pylint: disable=broad-except
+        imports["pillow"] = f"✗ {e}"
+
+    try:
+        import cv2 as _cv
+
+        imports["opencv"] = f"✓ {_cv.__version__}"
+    except Exception as e:  # pylint: disable=broad-except
+        imports["opencv"] = f"✗ {e}"
+
+    recommendations = [
+        "If CLIP fails with triton: run 'pip3 uninstall triton -y' in your WSL environment",
+        "If transformers missing: run 'pip3 install transformers --user'",
+        "For PyTorch CPU: follow https://download.pytorch.org/whl/cpu",
+    ]
+
+    return {
+        "python_version": sys.version,
+        "device": _DEVICE,
+        "torch_ready": _TORCH_READY,
+        "torchvision_ready": _TORCHVISION_READY,
+        "clip_ready": _CLIP_READY,
+        "imports": imports,
+        "torch_import_error": _TORCH_IMPORT_ERR,
+        "torchvision_import_error": _TORCHVISION_IMPORT_ERR,
+        "clip_import_error": _CLIP_IMPORT_ERR,
+        "recommendations": recommendations,
+    }
+
+
 @app.post("/predict-clothing")
 async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
     if not file.filename:
@@ -346,6 +493,14 @@ async def predict_clothing(file: UploadFile = File(...)) -> dict[str, Any]:
     top5: list[str] = []
     category = "clothing item"
     conf = 0.0
+
+    # Attempt to lazy-load CLIP if torch is available but CLIP wasn't loaded at startup.
+    if _TORCH_READY and not _CLIP_READY:
+        loaded = load_clip()
+        if loaded:
+            notes.append("CLIP loaded on demand.")
+        else:
+            notes.append("CLIP not available; falling back to ImageNet or filename heuristics.")
 
     if _CLIP_READY:
         category, conf, scores = _predict_clothing_category_clip(pil)

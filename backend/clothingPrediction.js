@@ -1,6 +1,10 @@
 /**
- * Calls the optional Python FastAPI service (clothing_predict_server.py) and
- * maps its response to Restyle wardrobe fields (category, color, season).
+ * Clothing prediction client (Node)
+ * - Sends multipart image POSTs to the Python prediction service
+ * - Normalizes the returned JSON to the app's wardrobe fields
+ * - Exposes helpers used by the Express route (/api/predict-clothing)
+ * Keep network/timeouts defensive: service may be offline, so this module
+ * provides clear error messages and fallbacks.
  */
 
 let FormDataPkg = null;

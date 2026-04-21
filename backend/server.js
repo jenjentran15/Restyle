@@ -1,3 +1,10 @@
+/**
+ * Restyle backend entrypoint
+ * - Express server exposing API routes under /api
+ * - Proxies image prediction requests to the Python service
+ * - Handles DB initialization and upload processing
+ * Keep this file minimal; business logic lives in helpers under this folder.
+ */
 require('dotenv').config();
 /**
  * Restyle Wardrobe Optimizer - Backend Server
