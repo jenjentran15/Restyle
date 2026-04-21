@@ -11,12 +11,12 @@ import shoesImg from '../assets/transparent_0.png';
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const QUOTES = [
-  "test 1",
-  "test 2",
-  "test 3",
-  "test 4",
-  "test 5",
-  "test 5",
+  "Style is a way to say who you are without having to speak.",
+  "Fashion is the armor to survive the reality of everyday life.",
+  "Clothes mean nothing until someone lives in them.",
+  "Fashion fades, style is eternal.",
+  "Dress like you're already famous.",
+  "Elegance is the only beauty that never fades."
 ];
 
 const WEATHER_OBJECTS = [
@@ -28,7 +28,7 @@ const WEATHER_OBJECTS = [
   {
     id: "cami", label: "hoodie",
     src: camiImg,
-    x: 75, y: 14, size: 300, quote: "quote", rotate: 8, floatDelay: 0.4,
+    x: 75, y: 14, size: 300, quote: "cozy up in any weather", rotate: 8, floatDelay: 0.4,
   },
   {
     id: "glasses", label: "tortoise glasses",
@@ -36,9 +36,9 @@ const WEATHER_OBJECTS = [
     x: 12, y: 40, size: 200, quote: "accessorize — rain or shine", rotate: -6, floatDelay: 0.8,
   },
   {
-    id: "necklace", label: "olive shirt",
+    id: "necklace", label: "olive polo",
     src: necklaceImg,
-    x: 6, y: 60, size: 300, quote: "add some sparkle to any forecast", rotate: 10, floatDelay: 1.2,
+    x: 6, y: 60, size: 300, quote: "classic style for any season", rotate: 10, floatDelay: 1.2,
   },
   {
     id: "jeans", label: "jeans",
