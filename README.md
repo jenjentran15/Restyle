@@ -78,79 +78,76 @@ cd ../backend
 npm install
 ```
 
-### 5. Setup Python Environment
+### 5. Setup Python Environment (prediction service)
+
+The clothing prediction service is a FastAPI app located at `backend/clothing_predict_server.py`.
 
 ```bash
-cd ../python-engine
-python -m venv venv
-
-# On Windows
-venv\Scripts\activate
-
-# On macOS/Linux
-source venv/bin/activate
+# from the repo root
+cd backend
+# optional: create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate   # macOS / Linux
+# venv\Scripts\activate   # Windows (PowerShell)
 
 pip install -r requirements.txt
+
+# Optional: install CPU PyTorch for ImageNet model (no GPU/triton required)
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Start the predictor (FastAPI on port 8000)
+python3 clothing_predict_server.py
 ```
 
-## 🏃 Running the Application
+## Running the Application (local)
 
-### Terminal 1 - Frontend (Port 3000)
+Run each block in its own terminal.
+
+### Terminal 1 — Frontend (Port 3000)
 ```bash
 cd frontend
+npm install
 npm start
 ```
 
-### Terminal 2 - Backend (Port 5000)
+### Terminal 2 — Backend Node API (Port 5000)
 ```bash
 cd backend
+npm install
 npm run dev
+# server.js listens on PORT (default 5000)
 ```
 
-### Terminal 3 - Python Engine (Port 5001)
+### Terminal 3 — Python predictor (FastAPI, Port 8000)
 ```bash
-cd python-engine
-python app.py
+cd backend
+source venv/bin/activate   # if you created one earlier
+python3 clothing_predict_server.py
 ```
 
-The application will be available at `http://localhost:3000`
+The frontend is available at `http://localhost:3000` and the backend API at `http://localhost:5000`.
+The prediction service runs at `http://127.0.0.1:8000/predict-clothing` by default.
 
-## 📁 Project Structure
+Quick health/debug endpoints:
 
-```
-project-website/
-├── frontend/
-│   ├── public/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── styles/
-│   │   ├── App.js
-│   │   └── index.js
-│   ├── package.json
-│   └── vercel.json
-├── backend/
-│   ├── config/
-│   ├── middleware/
-│   ├── routes/
-│   ├── server.js
-│   ├── package.json
-│   ├── .env.example
-│   └── vercel.json
-├── python-engine/
-│   ├── engine.py
-│   ├── app.py
-│   ├── requirements.txt
-│   └── .env.example
-├── .github/
-│   ├── CONTRIBUTING.md
-│   └── README.md
-├── .env.example
-├── .gitignore
-└── README.md
+```bash
+# Node backend health
+curl http://localhost:5000/api/health
+
+# Python predictor debug/status
+curl http://127.0.0.1:8000/debug/status
 ```
 
-## 🔌 API Endpoints
+Troubleshooting notes:
+- If CLIP fails to import with a Triton error (`No module named 'triton.backends'`), uninstall Triton in your Python environment:
+
+```bash
+pip3 uninstall triton -y
+```
+
+- If you only need basic ML without CLIP, installing CPU PyTorch (above) gives ImageNet-based predictions without GPU/triton complexities.
+
+## API Endpoints
 
 ### Backend (Node.js)
 
@@ -171,7 +168,7 @@ project-website/
 **System:**
 - `GET /api/health` - Health check endpoint
 
-## 📝 Environment Variables
+## Environment Variables
 
 Create a `.env` file in the root directory:
 
@@ -195,7 +192,7 @@ PYTHON_ENGINE_PORT=5001
 PYTORCH_MODEL_PATH=./models
 ```
 
-## 🗄️ Database Setup
+## Database Setup
 
 ### PostgreSQL
 
@@ -214,7 +211,7 @@ psql -U postgres -c "CREATE DATABASE wardrobe_db;"
 - `capsule_recommendations` - Stores generated capsule wardrobes
 - `user_preferences` - Stores user constraints and preferences
 
-## 🚀 Deployment
+## Deployment
 
 ### Deploy to Vercel
 
@@ -235,19 +232,19 @@ cd backend
 vercel deploy
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Please see [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines on how to contribute to this project.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 👥 Support
+## Support
 
 For issues, questions, or suggestions, please open an issue on GitHub.
 
-## 🔗 Useful Links
+## Useful Links
 
 - [React Documentation](https://react.dev)
 - [Node.js Documentation](https://nodejs.org/docs)
