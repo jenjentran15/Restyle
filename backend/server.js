@@ -29,10 +29,10 @@ const uploadsDir = path.join(__dirname, 'public', 'uploads');
 const ALLOWED_FORMALITY = new Set(['casual', 'business', 'formal', 'athletic']);
 const ALLOWED_SEASON = new Set(['all', 'spring', 'summer', 'fall', 'winter']);
 
-const clean = (v, fallback = '') => String(v ?? '').trim() || fallback;
-const normalizeCategory = v => clean(v, 'top').toLowerCase();
-const normalizeSeason = v => { const s = clean(v, 'all').toLowerCase(); return ALLOWED_SEASON.has(s) ? s : 'all'; };
-const normalizeFormality = v => { const f = clean(v, 'casual').toLowerCase(); return ALLOWED_FORMALITY.has(f) ? f : 'casual'; };
+const cleanText = (v, fallback = '') => String(v ?? '').trim() || fallback;
+const normalizeCategory = v => cleanText(v, 'top').toLowerCase();
+const normalizeSeason = v => { const s = cleanText(v, 'all').toLowerCase(); return ALLOWED_SEASON.has(s) ? s : 'all'; };
+const normalizeFormality = v => { const f = cleanText(v, 'casual').toLowerCase(); return ALLOWED_FORMALITY.has(f) ? f : 'casual'; };
 
 // Ensure uploads directory exists once on startup
 if (!fs.existsSync(uploadsDir)) {
@@ -278,6 +278,8 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
     const suggestedName = buildSuggestedName(normalized);
     res.json( {ok: true, suggestedName, ...normalized, raw});
     console.log(`[PREDICT] Python response received`);
+    console.log(`[PREDICT] Result: name="${suggestedName}", category=${normalized.category}, 
+               color=${normalized.color}, season=${normalized.season}, confidence=${normalized.confidence}`);
   } catch (err) {
     console.error(`[PREDICT] Predictor error: ${err.message || err}`);
     const isConn = /Cannot reach clothing prediction service|ECONNREFUSED|timed out|timeout/i.test(
@@ -290,8 +292,6 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
       hint: 'Start the Python app from the repo root: pip install -r requirements then python clothing_predict_server.py'
     });
   }
-  console.log(`[PREDICT] Result: name="${suggestedName}", category=${normalized.category}, 
-               color=${normalized.color}, season=${normalized.season}, confidence=${normalized.confidence}`);
 });
 
 // Delete clothing item

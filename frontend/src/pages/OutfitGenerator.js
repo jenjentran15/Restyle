@@ -1,12 +1,11 @@
-/* OutfitGenerator.js - page that sends outfit filters to backend
- * and displays generated outfit combinations.
- */
 import React, { useState } from 'react';
 import '../styles/OutfitGenerator.css';
+import { useOutfit } from '../content/OutfitContext';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function OutfitGenerator() {
+  const { setOutfits, setSelectedIdx } = useOutfit();
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({
@@ -19,22 +18,17 @@ function OutfitGenerator() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-
       const response = await fetch(`${API_URL}/api/outfits/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(selectedFilters)
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setResults(data);
+      // Auto-save all outfits to context so OutfitPreview always has latest
+      setOutfits(data.outfits || []);
+      setSelectedIdx(0);
     } catch (error) {
       console.error('Error generating outfits:', error);
       alert('Please add items in your wardrobe');
@@ -45,11 +39,7 @@ function OutfitGenerator() {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-
-    setSelectedFilters((prev) => ({
-      ...prev,
-      [name]: name === 'beamWidth' ? Number(value) : value
-    }));
+    setSelectedFilters(prev => ({ ...prev, [name]: name === 'beamWidth' ? Number(value) : value }));
   };
 
   return (
@@ -66,11 +56,7 @@ function OutfitGenerator() {
 
             <div className="form-group">
               <label>Formality Level</label>
-              <select
-                name="formality"
-                value={selectedFilters.formality}
-                onChange={handleFilterChange}
-              >
+              <select name="formality" value={selectedFilters.formality} onChange={handleFilterChange}>
                 <option value="all">All Levels</option>
                 <option value="casual">Casual</option>
                 <option value="business">Business</option>
@@ -81,11 +67,7 @@ function OutfitGenerator() {
 
             <div className="form-group">
               <label>Season</label>
-              <select
-                name="season"
-                value={selectedFilters.season}
-                onChange={handleFilterChange}
-              >
+              <select name="season" value={selectedFilters.season} onChange={handleFilterChange}>
                 <option value="all">All Seasons</option>
                 <option value="spring">Spring</option>
                 <option value="summer">Summer</option>
@@ -96,22 +78,14 @@ function OutfitGenerator() {
 
             <div className="form-group">
               <label>Outfit Variety</label>
-              <select
-                name="beamWidth"
-                value={selectedFilters.beamWidth}
-                onChange={handleFilterChange}
-              >
+              <select name="beamWidth" value={selectedFilters.beamWidth} onChange={handleFilterChange}>
                 <option value={3}>Focused</option>
                 <option value={5}>Balanced</option>
                 <option value={8}>More Variety</option>
               </select>
             </div>
 
-            <button
-              className="btn btn-primary"
-              onClick={handleGenerate}
-              disabled={loading}
-            >
+            <button className="btn btn-primary" onClick={handleGenerate} disabled={loading}>
               {loading ? 'Generating...' : 'Generate Outfits'}
             </button>
           </div>
@@ -137,7 +111,6 @@ function OutfitGenerator() {
 
                 <div className="compatibility-section">
                   <h3>Generated Outfit Ideas</h3>
-
                   {results.outfits && results.outfits.length > 0 ? (
                     <div className="utilization-list">
                       {results.outfits.map((outfit, index) => (
@@ -148,14 +121,11 @@ function OutfitGenerator() {
                               <p className="item-category">Score: {outfit.score}</p>
                             )}
                           </div>
-
                           <div className="outfit-items">
                             {outfit.items && outfit.items.length > 0 ? (
                               <ul className="insights-list">
-                                {outfit.items.map((item, itemIndex) => (
-                                  <li key={itemIndex}>
-                                    {item.name} ({item.category}, {item.color})
-                                  </li>
+                                {outfit.items.map((item, i) => (
+                                  <li key={i}>{item.name} ({item.category}, {item.color})</li>
                                 ))}
                               </ul>
                             ) : (
