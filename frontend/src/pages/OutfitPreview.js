@@ -6,26 +6,26 @@ import '../styles/OutfitPreview.css';
 import { useOutfit } from '../content/OutfitContext';
 
 const COLORS = {
-  white:'#f5f5f0', cream:'#f0ece0', black:'#1c1c1c', charcoal:'#3a3a3a',
-  gray:'#9a9a96', silver:'#c8c8c4', navy:'#2c3e6b', blue:'#4a6fa5',
-  denim:'#4a6fa5', beige:'#d4b896', tan:'#c8a878', brown:'#7a5c3e',
-  green:'#5a8a5a', olive:'#7a8c5a', red:'#c0392b', pink:'#e8a0b0',
-  yellow:'#e8c84a', orange:'#e07830', purple:'#7a55b0', teal:'#3a8a8a',
+  white:'#f5f5f0', cream:'#f0ece0', black:'#1c1c1c', gray:'#9a9a96',
+  silver:'#c8c8c4', navy:'#2c3e6b', blue:'#4a6fa5', beige:'#d4b896',
+  tan:'#c8a878', brown:'#7a5c3e', green:'#5a8a5a', olive:'#7a8c5a',
+  red:'#c0392b', pink:'#e8a0b0', yellow:'#e8c84a', orange:'#e07830',
+  purple:'#7a55b0', teal:'#3a8a8a',
 };
 
 const toHex = c => COLORS[(c || '').toLowerCase().trim()] || '#a0a0a0';
-const norm  = s => (s || '').toLowerCase().trim();
-const isTop      = c => ['t-shirt','tshirt','shirt','tee','blouse','top','tank top','sweater'].includes(norm(c));
-const isBottom   = c => ['pants','jeans','trousers','bottom','shorts','skirt'].includes(norm(c));
-const isShoes    = c => ['shoes','sneakers','boots','heels','loafers'].includes(norm(c));
-const isOuterwear= c => ['jacket','jacket / coat','coat','outerwear','blazer','hoodie'].includes(norm(c));
+const norm = s => (s || '').toLowerCase().trim();
+const isTop = c => ['t-shirt','tshirt','shirt','tee','blouse','top','tank top','sweater'].includes(norm(c));
+const isBottom = c => ['pants','jeans','trousers','bottom','shorts','skirt'].includes(norm(c));
+const isShoes = c => ['shoes','sneakers','boots','heels','loafers'].includes(norm(c));
+const isOuterwear = c => ['jacket','jacket / coat','coat','outerwear','blazer','hoodie'].includes(norm(c));
 
 function getMeshType(n) {
-  if (['Object_6','Object_7'].includes(n))                           return 'mannequin';
-  if (n.includes('Shoe_L_') || n.includes('Shoe_R_'))                return 'shoes';
-  if (n.includes('Trousers') || /^(Cube0|Cylinder|Plane)/.test(n))  return 'pants';
+  if (['Object_6','Object_7'].includes(n)) return 'mannequin';
+  if (n.includes('Shoe_L_') || n.includes('Shoe_R_')) return 'shoes';
+  if (n.includes('Trousers') || /^(Cube0|Cylinder|Plane)/.test(n)) return 'pants';
   if (['Object_4','Object_5001','Object_6001','Object_7001'].includes(n)) return 'shirt';
-  if (n.startsWith('Hoodie_'))                                        return 'hoodie';
+  if (n.startsWith('Hoodie_')) return 'hoodie';
   return null;
 }
 
@@ -57,11 +57,11 @@ function OutfitModel({ top, bottom, shoes, outerwear }) {
       if (!type) return;
       child.castShadow = true;
       switch (type) {
-        case 'mannequin': child.visible = true;               child.material = mat('#c8b89a'); break;
-        case 'shirt':     child.visible = !!top && !outerwear; child.material = mat(top ? toHex(top.color) : '#a0a0a0'); break;
-        case 'hoodie':    child.visible = !!outerwear;         child.material = mat(outerwear ? toHex(outerwear.color) : '#a0a0a0'); break;
-        case 'pants':     child.visible = !!bottom;            child.material = mat(bottom ? toHex(bottom.color) : '#a0a0a0'); break;
-        case 'shoes':     child.visible = !!shoes;             child.material = mat(shoes ? toHex(shoes.color) : '#a0a0a0'); break;
+        case 'mannequin': child.visible = true; child.material = mat('#c8b89a'); break;
+        case 'shirt': child.visible = !!top && !outerwear; child.material = mat(top ? toHex(top.color) : '#a0a0a0'); break;
+        case 'hoodie': child.visible = !!outerwear; child.material = mat(outerwear ? toHex(outerwear.color) : '#a0a0a0'); break;
+        case 'pants': child.visible = !!bottom; child.material = mat(bottom ? toHex(bottom.color) : '#a0a0a0'); break;
+        case 'shoes': child.visible = !!shoes; child.material = mat(shoes ? toHex(shoes.color) : '#a0a0a0'); break;
         default: break;
       }
     });
@@ -73,9 +73,9 @@ function OutfitModel({ top, bottom, shoes, outerwear }) {
 }
 
 function Scene({ items }) {
-  const top       = items.find(i => isTop(i.category))       || null;
-  const bottom    = items.find(i => isBottom(i.category))    || null;
-  const shoes     = items.find(i => isShoes(i.category))     || null;
+  const top = items.find(i => isTop(i.category)) || null;
+  const bottom = items.find(i => isBottom(i.category)) || null;
+  const shoes = items.find(i => isShoes(i.category)) || null;
   const outerwear = items.find(i => isOuterwear(i.category)) || null;
   return (
     <group>
