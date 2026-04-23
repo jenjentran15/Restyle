@@ -35,25 +35,11 @@ function Wardrobe() {
 
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        setItems([]);
-        setError('Please log in to view your wardrobe.');
-        return;
-      }
-
       const response = await fetch(`${API_URL}/api/clothing`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      if (response.status === 401 || response.status === 403) {
-        setItems([]);
-        setError('Your session expired. Please log in again.');
-        return;
-      }
-      if (!response.ok) {
-        throw new Error(`Failed to load wardrobe (HTTP ${response.status})`);
-      }
 
       const data = await response.json();
 
