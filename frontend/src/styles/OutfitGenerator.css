@@ -256,3 +256,9 @@
 .wardrobe-actions {
   margin-bottom: 28px;
 }
+
+.outfit-item-entry {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
