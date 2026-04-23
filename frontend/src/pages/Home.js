@@ -157,6 +157,9 @@ function Home() {
   const [hoveredObj, setHoveredObj] = useState(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [scrollY, setScrollY] = useState(0);
+  const [user] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+  })
   const greeting = getGreeting();
 
   useEffect(() => {
@@ -252,7 +255,7 @@ function Home() {
             fontFamily: "'DM Mono', monospace",
             color: greeting.color, fontStyle: "italic", letterSpacing: "0.04em",
           }}>
-            {greeting.text}
+            {greeting.text}{user ? `, ${user.name}`: ''}
           </div>
         </div>
 

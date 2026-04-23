@@ -13,7 +13,7 @@ require('dotenv').config();
  * - Wardrobe
  * - Outfit Generator
  * - Outfit Preview
- * - Login / Signup (frontend only for now)
+ * - Login / Signup
  */
 const express = require('express');
 const cors = require('cors');
@@ -27,11 +27,7 @@ require('dotenv').config();
 
 const pool = require('./config/database');
 const { beamSearchGenerateOutfits } = require('./outfitGenerator');
-const {
-  callPredictService,
-  normalizePredictionPayload,
-  buildSuggestedName
-} = require('./clothingPrediction');
+const { callPredictService, normalizePredictionPayload, buildSuggestedName } = require('./clothingPrediction');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,11 +40,7 @@ function cleanText(value, fallback = '') {
   return v || fallback;
 }
 
-function normalizeCategory(value) {
-  const c = cleanText(value, 'top').toLowerCase();
-  return c;
-}
-
+function normalizeCategory(value) { return cleanText(value, 'top').toLowerCase(); }
 function normalizeSeason(value) {
   const s = cleanText(value, 'all').toLowerCase();
   return ALLOWED_SEASON.has(s) ? s : 'all';
@@ -66,14 +58,12 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Temporary auth middleware for development
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'No token provided' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
-  } catch (err) {
+  } catch {
     return res.status(403).json({ message: 'Invalid or expired token' });
   }
 };
@@ -91,10 +81,7 @@ const upload = multer({
 });
 
 // Middleware
-app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.json());
 app.use('/uploads', express.static(uploadsDir));
 
@@ -111,11 +98,7 @@ const initializeDatabase = async () => {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    `);
-
+    await pool.query(` CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS clothing_items (
         id SERIAL PRIMARY KEY,
@@ -130,7 +113,6 @@ const initializeDatabase = async () => {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
-
     // Ensure `user_id` column exists and has the proper foreign key/index.
     // This makes the initialization idempotent and avoids errors when an
     // older schema exists without the column.
@@ -155,12 +137,7 @@ const initializeDatabase = async () => {
         END IF;
       END$$;
     `);
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_clothing_items_user_id
-      ON clothing_items(user_id);
-    `);
-
+    await pool.query(` CREATE INDEX IF NOT EXISTS idx_clothing_items_user_id ON clothing_items(user_id);`);
     await pool.query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
       RETURNS TRIGGER AS $$
@@ -199,8 +176,9 @@ app.get('/api/health', (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
   const { name, email, password } = req.body;
   console.log(`[AUTH] Signup attempt: email=${email}`);
-  if (!name || !email || !password)
-    return res.status(400).json({ message: 'Please fill in the blank spaces' });
+
+  if (!name || !email || !password) return res.status(400).json({ message: 'Please fill in the blank spaces' });
+
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
@@ -227,18 +205,19 @@ app.post('/api/auth/signup', async (req, res) => {
 // POST /api/auth/login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password)
-    return res.status(400).json({ message: 'Please fill in the blank spaces' });
+  if (!email || !password) return res.status(400).json({ message: 'Please fill in the blank spaces' });
   try {
     const bcrypt = require('bcryptjs');
     const jwt = require('jsonwebtoken');
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (result.rows.length === 0)
-      return res.status(401).json({ message: 'Invalid email or password' });
+
+    if (result.rows.length === 0) return res.status(401).json({ message: 'Invalid email or password' });
+
     const user = result.rows[0];
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(401).json({ message: 'Invalid email or password' });
+
+    if (!isMatch)return res.status(401).json({ message: 'Invalid email or password' });
+
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, name: user.name, email: user.email } });
   } catch (err) {
@@ -269,9 +248,7 @@ app.get('/api/clothing/:id', authenticateToken, async (req, res) => {
       [req.params.id, req.user.id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Item not found' });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -304,8 +281,7 @@ app.post('/api/clothing', authenticateToken, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
       `,
-      [
-        req.user.id,
+      [ req.user.id,
         normalizedName,
         normalizedCategory,
         normalizedColor,
@@ -346,7 +322,6 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
         message: 'Only image files are supported'
       });
     }
-
     let raw;
     try {
       console.log(`[PREDICT] Calling Python predictor...`);
@@ -354,19 +329,15 @@ app.post('/api/predict-clothing', authenticateToken, upload.single('image'), asy
       console.log(`[PREDICT] Python response received`);
     } catch (err) {
       console.error(`[PREDICT] Predictor error: ${err.message || err}`);
-      const isConn =
-        /Cannot reach clothing prediction service|ECONNREFUSED|timed out|timeout/i.test(
-          String(err.message || err)
-        );
+      const isConn = /Cannot reach clothing prediction service|ECONNREFUSED|timed out|timeout/i.test
+        (String(err.message || err));
       return res.status(isConn ? 503 : 502).json({
         ok: false,
         error: isConn ? 'PREDICT_UNAVAILABLE' : 'PREDICT_FAILED',
         message: err.message || 'Prediction failed',
-        hint:
-          'Start the Python app from the repo root: pip install -r requirements then python clothing_predict_server.py'
+        hint: 'Start the Python app from the repo root: pip install -r requirements then python clothing_predict_server.py'
       });
     }
-
     const normalized = normalizePredictionPayload(raw);
     const suggestedName = buildSuggestedName(normalized);
     console.log(`[PREDICT] Result: name="${suggestedName}", category=${normalized.category}, color=${normalized.color}, season=${normalized.season}, confidence=${normalized.confidence}`);
@@ -404,7 +375,6 @@ app.delete('/api/clothing/:id', authenticateToken, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Item not found' });
     }
-
     res.json({
       message: 'Item deleted successfully',
       item: result.rows[0]
@@ -426,10 +396,8 @@ app.post('/api/upload-clothing', authenticateToken, upload.single('image'), asyn
       console.log(`[UPLOAD] Invalid mimetype: ${req.file.mimetype}`);
       return res.status(400).json({ error: 'Only image files are allowed' });
     }
-
     const { name, category, color, formality, season, brand, size, notes } = req.body;
     console.log(`[UPLOAD] File: ${req.file.originalname}, name: ${name}, category: ${category}, color: ${color}`);
-
     if (!category || !color) {
       console.log('[UPLOAD] Missing required fields: category or color');
       return res.status(400).json({
@@ -496,12 +464,10 @@ app.post('/api/upload-clothing', authenticateToken, upload.single('image'), asyn
 app.post('/api/outfits/generate', authenticateToken, async (req, res) => {
   try {
     const { formality = 'all', season = 'all', beamWidth = 5 } = req.body;
-
     const result = await pool.query(
       'SELECT * FROM clothing_items WHERE user_id = $1',
       [req.user.id]
     );
-
     const items = result.rows;
     const outfits = beamSearchGenerateOutfits(items, {
       formality,
