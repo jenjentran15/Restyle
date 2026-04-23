@@ -154,8 +154,26 @@ function OutfitGenerator() {
                             {outfit.items && outfit.items.length > 0 ? (
                               <ul className="insights-list">
                                 {outfit.items.map((item, itemIndex) => (
-                                  <li key={itemIndex}>
-                                    {item.name} ({item.category}, {item.color})
+                                  <li key={itemIndex} className="outfit-item-entry">
+                                    {/* Show item image if available, same as Wardrobe.js */}
+                                    {item.image_url && (
+                                      <img
+                                        src={`${API_URL}${item.image_url}`}
+                                        alt={item.name}
+                                        className="outfit-item-image"
+                                        style={{
+                                          width: '80px',
+                                          height: '80px',
+                                          objectFit: 'contain',
+                                          borderRadius: '8px',
+                                          marginBottom: '0.5rem',
+                                          display: 'block'
+                                        }}
+                                      />
+                                    )}
+                                    <span>
+                                      {item.name} ({item.category}, {item.color})
+                                    </span>
                                   </li>
                                 ))}
                               </ul>
