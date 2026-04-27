@@ -40,6 +40,7 @@ const Header = ({ onLogout }) => {
           <Link to="/">Home</Link>
           <Link to="/wardrobe">Wardrobe</Link>
           <Link to="/outfit-generator">Outfit Generator</Link>
+          <Link to="/saved-outfits">Saved Outfits</Link>
           <Link to="/outfit-preview">Outfit Preview</Link>
 
           {!isAuthenticated && <Link to="/login">Log In / Sign Up</Link>}
