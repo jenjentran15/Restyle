@@ -3,37 +3,36 @@
  */
 import React, { useState } from 'react';
 import '../styles/OutfitGenerator.css';
+import { useOutfit } from '../content/OutfitProvider';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 function OutfitGenerator() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [savedFlags, setSavedFlags] = useState({});
   const [selectedFilters, setSelectedFilters] = useState({
     formality: 'all',
     season: 'all',
-    beamWidth: 5
+    beamWidth: 5,
   });
+
+  const { saveOutfit } = useOutfit();
 
   const handleGenerate = async () => {
     setLoading(true);
-
+    setSavedFlags({});
     try {
       const token = localStorage.getItem('token');
-
       const response = await fetch(`${API_URL}/api/outfits/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(selectedFilters)
+        body: JSON.stringify(selectedFilters),
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setResults(data);
     } catch (error) {
@@ -46,11 +45,15 @@ function OutfitGenerator() {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-
     setSelectedFilters((prev) => ({
       ...prev,
-      [name]: name === 'beamWidth' ? Number(value) : value
+      [name]: name === 'beamWidth' ? Number(value) : value,
     }));
+  };
+
+  const handleSave = (outfit, index) => {
+    saveOutfit(outfit);
+    setSavedFlags((prev) => ({ ...prev, [index]: true }));
   };
 
   return (
@@ -67,11 +70,7 @@ function OutfitGenerator() {
 
             <div className="form-group">
               <label>Formality Level</label>
-              <select
-                name="formality"
-                value={selectedFilters.formality}
-                onChange={handleFilterChange}
-              >
+              <select name="formality" value={selectedFilters.formality} onChange={handleFilterChange}>
                 <option value="all">All Levels</option>
                 <option value="casual">Casual</option>
                 <option value="business">Business</option>
@@ -82,11 +81,7 @@ function OutfitGenerator() {
 
             <div className="form-group">
               <label>Season</label>
-              <select
-                name="season"
-                value={selectedFilters.season}
-                onChange={handleFilterChange}
-              >
+              <select name="season" value={selectedFilters.season} onChange={handleFilterChange}>
                 <option value="all">All Seasons</option>
                 <option value="spring">Spring</option>
                 <option value="summer">Summer</option>
@@ -97,22 +92,14 @@ function OutfitGenerator() {
 
             <div className="form-group">
               <label>Outfit Variety</label>
-              <select
-                name="beamWidth"
-                value={selectedFilters.beamWidth}
-                onChange={handleFilterChange}
-              >
+              <select name="beamWidth" value={selectedFilters.beamWidth} onChange={handleFilterChange}>
                 <option value={3}>Focused</option>
                 <option value={5}>Balanced</option>
                 <option value={8}>More Variety</option>
               </select>
             </div>
 
-            <button
-              className="btn btn-primary"
-              onClick={handleGenerate}
-              disabled={loading}
-            >
+            <button className="btn btn-primary" onClick={handleGenerate} disabled={loading}>
               {loading ? 'Generating...' : 'Generate Outfits'}
             </button>
           </div>
@@ -155,7 +142,6 @@ function OutfitGenerator() {
                               <ul className="insights-list">
                                 {outfit.items.map((item, itemIndex) => (
                                   <li key={itemIndex} className="outfit-item-entry">
-                                    {/* Show item image if available, same as Wardrobe.js */}
                                     {item.image_url && (
                                       <img
                                         src={`${API_URL}${item.image_url}`}
@@ -167,7 +153,7 @@ function OutfitGenerator() {
                                           objectFit: 'contain',
                                           borderRadius: '8px',
                                           marginBottom: '0.5rem',
-                                          display: 'block'
+                                          display: 'block',
                                         }}
                                       />
                                     )}
@@ -181,6 +167,19 @@ function OutfitGenerator() {
                               <p>No items available for this outfit.</p>
                             )}
                           </div>
+
+                          <button
+                            onClick={() => handleSave(outfit, index)}
+                            disabled={savedFlags[index]}
+                            className="btn btn-primary"
+                            style={{
+
+                              opacity: savedFlags[index] ? 0.55 : 1,
+                              cursor: savedFlags[index] ? 'default' : 'pointer',
+                            }}
+                          >
+                            {savedFlags[index] ? '✓ Saved' : 'Save Outfit'}
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -198,3 +197,4 @@ function OutfitGenerator() {
 }
 
 export default OutfitGenerator;
+
