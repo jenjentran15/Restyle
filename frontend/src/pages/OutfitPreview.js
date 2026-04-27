@@ -32,7 +32,7 @@ function getMeshType(n) {
 const mat = color => new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness: 0.85, metalness: 0 });
 
 function OutfitModel({ top, bottom, shoes, outerwear }) {
-  const { scene } = useGLTF('/models/outfit.glb');
+  const { scene } = useGLTF('/models/model.glb');
   const cloned = useMemo(() => scene.clone(true), [scene]);
 
   useEffect(() => {
@@ -174,5 +174,5 @@ function OutfitPreview() {
   );
 }
 
-useGLTF.preload('/models/outfit.glb');
+useGLTF.preload('/models/model.glb');
 export default OutfitPreview;
