@@ -9,42 +9,24 @@ import necklaceImg from '../assets/olive_polo_nobg.png';
 import shoesImg from '../assets/transparent_0.png';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const WEATHER_API_KEY = process.env.REACT_APP_WEATHER_API_KEY;
 
 const QUOTES = [
-  "Style is a way to say who you are without having to speak.",
-  "Fashion is the armor to survive the reality of everyday life.",
-  "Clothes mean nothing until someone lives in them.",
-  "Fashion fades, style is eternal.",
-  "Dress like you're already famous.",
+  "dress how you want to feel",
+  "style is self-expression, not perfection",
+  "look good, feel good, do good",
+  "your outfit sets the tone for your day",
+  "wear what makes you feel like yourself",
+  "the best wardrobe is one that feels like you",
   "Elegance is the only beauty that never fades."
 ];
 
 const WEATHER_OBJECTS = [
-  {
-    id: "top_white", label: "sambas",
-    src: topWhiteImg,
-    x: 8, y: 12, size: 300, quote: "perfect for a breezy evening out", rotate: -12, floatDelay: 0.0,
-  },
-  {
-    id: "cami", label: "hoodie",
-    src: camiImg,
-    x: 75, y: 14, size: 300, quote: "cozy up in any weather", rotate: 8, floatDelay: 0.4,
-  },
-  {
-    id: "glasses", label: "tortoise glasses",
-    src: glassesImg,
-    x: 12, y: 40, size: 200, quote: "accessorize — rain or shine", rotate: -6, floatDelay: 0.8,
-  },
-  {
-    id: "necklace", label: "olive polo",
-    src: necklaceImg,
-    x: 6, y: 60, size: 300, quote: "classic style for any season", rotate: 10, floatDelay: 1.2,
-  },
-  {
-    id: "jeans", label: "jeans",
-    src: shoesImg,
-    x: 68, y: 40, size: 350, quote: "chic even in cloudy weather", rotate: -15, floatDelay: 1.6,
-  },
+  { id: "top_white", label: "sambas", src: topWhiteImg, x: 8, y: 12, size: 300, quote: "perfect for a breezy evening out", rotate: -12, floatDelay: 0.0 },
+  { id: "cami", label: "hoodie", src: camiImg, x: 75, y: 14, size: 300, quote: "cozy up in any weather", rotate: 8, floatDelay: 0.4 },
+  { id: "glasses", label: "tortoise glasses", src: glassesImg, x: 12, y: 40, size: 200, quote: "accessorize — rain or shine", rotate: -6, floatDelay: 0.8 },
+  { id: "necklace", label: "olive polo", src: necklaceImg, x: 6, y: 60, size: 300, quote: "classic style for any season", rotate: 10, floatDelay: 1.2 },
+  { id: "jeans", label: "jeans", src: shoesImg, x: 68, y: 40, size: 350, quote: "chic even in cloudy weather", rotate: -15, floatDelay: 1.6 },
 ];
 
 function getGreeting() {
@@ -54,30 +36,87 @@ function getGreeting() {
   return { text: "good evening", color: "#6A4C93" };
 }
 
+function getWeatherIcon(weatherId) {
+  if (weatherId >= 200 && weatherId < 300) return "⛈️";
+  if (weatherId >= 300 && weatherId < 400) return "🌦️";
+  if (weatherId >= 500 && weatherId < 600) return "🌧️";
+  if (weatherId >= 600 && weatherId < 700) return "❄️";
+  if (weatherId >= 700 && weatherId < 800) return "🌫️";
+  if (weatherId === 800) return "☀️";
+  if (weatherId === 801 || weatherId === 802) return "⛅";
+  return "🌥️";
+}
+
+function getStyleSuggestion(weatherId, tempF) {
+  if (weatherId >= 200 && weatherId < 300) return "thunder outside — stay cozy";
+  if (weatherId >= 500 && weatherId < 600) return "raincoat & boots day";
+  if (weatherId >= 600 && weatherId < 700) return "bundle up, it's snowing";
+  if (weatherId >= 700 && weatherId < 800) return "foggy vibes, layer up";
+  if (tempF >= 80) return "breezy fits only";
+  if (tempF >= 65) return "light jacket weather";
+  if (tempF >= 50) return "sweater weather";
+  if (tempF >= 35) return "coat & scarf time";
+  return "bundle up, it's cold";
+}
+
 function WeatherWidget() {
-  const conditions = [
-    { icon: "⛅", temp: "64°F", desc: "Partly Cloudy", suggestion: "light jacket weather" },
-    { icon: "🌧️", temp: "52°F", desc: "Rainy", suggestion: "raincoat & boots day" },
-    { icon: "☀️", temp: "78°F", desc: "Sunny", suggestion: "breezy fits" },
-    { icon: "❄️", temp: "32°F", desc: "Snowy", suggestion: "bundle up, it's cold" },
-  ];
-  const [condition] = useState(conditions[Math.floor(Math.random() * conditions.length)]);
+  const [weather, setWeather] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!WEATHER_API_KEY) { setError(true); return; }
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?lat=${coords.latitude}&lon=${coords.longitude}&units=imperial&appid=${WEATHER_API_KEY}`
+          );
+          const data = await res.json();
+          if (data.cod !== 200) { setError(true); return; }
+          const tempF = Math.round(data.main.temp);
+          const weatherId = data.weather[0].id;
+          setWeather({
+            icon: getWeatherIcon(weatherId),
+            temp: `${tempF}°F`,
+            desc: data.weather[0].main,
+            city: data.name,
+            suggestion: getStyleSuggestion(weatherId, tempF),
+          });
+        } catch { setError(true); }
+      },
+      () => setError(true)
+    );
+  }, []);
+
+  const widgetStyle = {
+    position: "absolute", top: "78px", left: "50%", transform: "translateX(-50%)",
+    background: "rgba(255,255,255,0.82)", backdropFilter: "blur(12px)",
+    border: "1px solid rgba(255,255,255,0.9)", borderRadius: "40px",
+    padding: "9px 22px", display: "flex", alignItems: "center", gap: "10px",
+    boxShadow: "0 4px 24px rgba(0,0,0,0.07)", zIndex: 30,
+    fontSize: "13px", fontFamily: "'DM Mono', monospace", color: "#333",
+    whiteSpace: "nowrap",
+  };
+
+  if (error || !weather) {
+    return (
+      <div style={widgetStyle}>
+        <span style={{ fontSize: "20px" }}>🌤️</span>
+        <span style={{ color: "#E76F51", fontStyle: "italic" }}>dress for the day</span>
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      position: "absolute", top: "78px", left: "50%", transform: "translateX(-50%)",
-      background: "rgba(255,255,255,0.82)", backdropFilter: "blur(12px)",
-      border: "1px solid rgba(255,255,255,0.9)", borderRadius: "40px",
-      padding: "9px 22px", display: "flex", alignItems: "center", gap: "10px",
-      boxShadow: "0 4px 24px rgba(0,0,0,0.07)", zIndex: 30,
-      fontSize: "13px", fontFamily: "'DM Mono', monospace", color: "#333",
-      whiteSpace: "nowrap",
-    }}>
-      <span style={{ fontSize: "20px" }}>{condition.icon}</span>
-      <span style={{ fontWeight: 600 }}>{condition.temp}</span>
+    <div style={widgetStyle}>
+      <span style={{ fontSize: "20px" }}>{weather.icon}</span>
+      <span style={{ fontWeight: 600 }}>{weather.temp}</span>
       <span style={{ color: "#ccc" }}>·</span>
-      <span>{condition.desc}</span>
+      <span>{weather.desc}</span>
       <span style={{ color: "#ccc" }}>·</span>
-      <span style={{ color: "#E76F51", fontStyle: "italic" }}>{condition.suggestion}</span>
+      <span style={{ color: "#aaa" }}>{weather.city}</span>
+      <span style={{ color: "#ccc" }}>·</span>
+      <span style={{ color: "#E76F51", fontStyle: "italic" }}>{weather.suggestion}</span>
     </div>
   );
 }
@@ -94,44 +133,21 @@ function FloatingObject({ obj, onHover, isHovered }) {
         width: obj.size, height: obj.size, cursor: "pointer",
         zIndex: isHovered ? 20 : 10,
         transition: "transform 0.35s cubic-bezier(0.34,1.56,0.64,1), filter 0.3s",
-        transform: isHovered
-          ? `rotate(${obj.rotate}deg) scale(1.22)`
-          : `rotate(${obj.rotate}deg) scale(1)`,
-        filter: isHovered
-          ? "drop-shadow(0 12px 28px rgba(0,0,0,0.25))"
-          : "drop-shadow(0 4px 10px rgba(0,0,0,0.12))",
+        transform: isHovered ? `rotate(${obj.rotate}deg) scale(1.22)` : `rotate(${obj.rotate}deg) scale(1)`,
+        filter: isHovered ? "drop-shadow(0 12px 28px rgba(0,0,0,0.25))" : "drop-shadow(0 4px 10px rgba(0,0,0,0.12))",
         animation: `${animName} ${3.5 + obj.floatDelay * 0.3}s ease-in-out ${obj.floatDelay}s infinite`,
       }}
     >
-      <img
-        src={obj.src}
-        alt={obj.label}
-        style={{
-          width: "100%", height: "100%", objectFit: "contain",
-          transition: "opacity 0.2s",
-          opacity: isHovered ? 1 : 0.88,
-        }}
-      />
+      <img src={obj.src} alt={obj.label} style={{ width: "100%", height: "100%", objectFit: "contain", transition: "opacity 0.2s", opacity: isHovered ? 1 : 0.88 }} />
       {isHovered && (
         <div style={{
-          position: "absolute", bottom: "108%", left: "50%",
-          transform: "translateX(-50%)",
-          background: "#1a1a1a", color: "#fff",
-          borderRadius: "10px", padding: "7px 14px",
-          fontSize: "11px", fontFamily: "'DM Mono', monospace",
-          whiteSpace: "nowrap", letterSpacing: "0.05em",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-          animation: "fadeUp 0.18s ease", zIndex: 50,
+          position: "absolute", bottom: "108%", left: "50%", transform: "translateX(-50%)",
+          background: "#1a1a1a", color: "#fff", borderRadius: "10px", padding: "7px 14px",
+          fontSize: "11px", fontFamily: "'DM Mono', monospace", whiteSpace: "nowrap",
+          letterSpacing: "0.05em", boxShadow: "0 4px 16px rgba(0,0,0,0.2)", animation: "fadeUp 0.18s ease", zIndex: 50,
         }}>
           {obj.quote}
-          <div style={{
-            position: "absolute", top: "100%", left: "50%",
-            transform: "translateX(-50%)",
-            width: 0, height: 0,
-            borderLeft: "5px solid transparent",
-            borderRight: "5px solid transparent",
-            borderTop: "5px solid #1a1a1a",
-          }} />
+          <div style={{ position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)", width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderTop: "5px solid #1a1a1a" }} />
         </div>
       )}
     </div>
@@ -157,16 +173,14 @@ function Home() {
   const [hoveredObj, setHoveredObj] = useState(null);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [scrollY, setScrollY] = useState(0);
-  const [user] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
-  })
+  const [user] = useState(() => { try { return JSON.parse(localStorage.getItem('user')); } catch { return null; } });
   const greeting = getGreeting();
 
   useEffect(() => {
     fetch(`${API_URL}/api/health`)
-      .then((res) => res.json())
-      .then((data) => { setStats(data); setLoading(false); })
-      .catch((err) => { console.error('Error fetching data:', err); setLoading(false); });
+      .then(r => r.json())
+      .then(d => { setStats(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -203,130 +217,51 @@ function Home() {
         .restyle-feature-link:hover { opacity:0.7; }
       `}</style>
 
-      <section style={{
-        position: "relative", height: "100vh",
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        overflow: "hidden",
-      }}>
+      <section style={{ position: "relative", height: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
         <WeatherWidget />
-
         {WEATHER_OBJECTS.map(obj => (
           <FloatingObject key={obj.id} obj={obj} onHover={setHoveredObj} isHovered={hoveredObj === obj.id} />
         ))}
-
         <div style={{ textAlign: "center", zIndex: 20, position: "relative" }}>
-          <h1 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "clamp(72px, 12vw, 140px)",
-            fontWeight: 400, fontStyle: "italic",
-            color: "#1a1a1a", lineHeight: 1,
-            letterSpacing: "-0.02em", marginBottom: "14px",
-            animation: "fadeIn 0.8s ease both",
-          }}>Restyle</h1>
-
-          <p style={{
-            fontFamily: "'DM Mono', monospace", fontSize: "12px",
-            letterSpacing: "0.14em", color: "#aaa",
-            textTransform: "uppercase", marginBottom: "24px",
-            animation: "fadeIn 0.8s ease 0.2s both",
-            margin: "0 0 24px 0",
-          }}>
-            wardrobe · outfits · style
-          </p>
-
+          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(72px, 12vw, 140px)", fontWeight: 400, fontStyle: "italic", color: "#1a1a1a", lineHeight: 1, letterSpacing: "-0.02em", marginBottom: "14px", animation: "fadeIn 0.8s ease both" }}>Restyle</h1>
+          <p style={{ fontFamily: "'DM Mono', monospace", fontSize: "12px", letterSpacing: "0.14em", color: "#aaa", textTransform: "uppercase", animation: "fadeIn 0.8s ease 0.2s both", margin: "0 0 24px 0" }}>wardrobe · outfits · style</p>
           <div style={{ height: "26px", overflow: "hidden", marginBottom: "38px", animation: "fadeIn 0.8s ease 0.4s both" }}>
-            <p key={quoteIndex} style={{
-              fontFamily: "'DM Mono', monospace", fontStyle: "italic",
-              fontSize: "14px", color: "#666",
-              animation: "quoteSlide 3.2s ease", letterSpacing: "0.02em",
-              margin: 0,
-            }}>
-              {QUOTES[quoteIndex]}
-            </p>
+            <p key={quoteIndex} style={{ fontFamily: "'DM Mono', monospace", fontStyle: "italic", fontSize: "14px", color: "#666", animation: "quoteSlide 3.2s ease", letterSpacing: "0.02em", margin: 0 }}>{QUOTES[quoteIndex]}</p>
           </div>
-
-          <Link to="/wardrobe" className="restyle-cta-btn" style={{ animation: "fadeIn 0.8s ease 0.6s both" }}>
-            start building your wardrobe
-          </Link>
-
-          <div style={{
-            marginTop: "16px", fontSize: "12px",
-            fontFamily: "'DM Mono', monospace",
-            color: greeting.color, fontStyle: "italic", letterSpacing: "0.04em",
-          }}>
-            {greeting.text}{user ? `, ${user.name}`: ''}
+          <Link to="/wardrobe" className="restyle-cta-btn" style={{ animation: "fadeIn 0.8s ease 0.6s both" }}>start building your wardrobe</Link>
+          <div style={{ marginTop: "16px", fontSize: "12px", fontFamily: "'DM Mono', monospace", color: greeting.color, fontStyle: "italic", letterSpacing: "0.04em" }}>
+            {greeting.text}{user ? `, ${user.name}` : ''}
           </div>
         </div>
-
-        <div style={{
-          position: "absolute", bottom: "28px", left: "50%", transform: "translateX(-50%)",
-          display: "flex", flexDirection: "column", alignItems: "center", gap: "6px",
-          opacity: scrollY > 50 ? 0 : 1, transition: "opacity 0.3s",
-        }}>
+        <div style={{ position: "absolute", bottom: "28px", left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", opacity: scrollY > 50 ? 0 : 1, transition: "opacity 0.3s" }}>
           <span style={{ fontFamily: "'DM Mono', monospace", fontSize: "11px", color: "#bbb", letterSpacing: "0.1em" }}>scroll</span>
           <div style={{ width: 1, height: 36, background: "linear-gradient(to bottom, #bbb, transparent)" }} />
         </div>
       </section>
 
-      {/* features */}
-      <section style={{
-        padding: "100px 48px 80px", maxWidth: "1100px", margin: "0 auto",
-        opacity: sectionVisible ? 1 : 0,
-        transform: sectionVisible ? "translateY(0)" : "translateY(30px)",
-        transition: "all 0.7s ease",
-      }}>
+      <section style={{ padding: "100px 48px 80px", maxWidth: "1100px", margin: "0 auto", opacity: sectionVisible ? 1 : 0, transform: sectionVisible ? "translateY(0)" : "translateY(30px)", transition: "all 0.7s ease" }}>
         <p style={{ fontFamily: "'DM Mono', monospace", fontSize: "11px", letterSpacing: "0.16em", color: "#bbb", textTransform: "uppercase", marginBottom: "14px" }}>explore</p>
-        <h2 style={{
-          fontFamily: "'Playfair Display', serif",
-          fontSize: "clamp(32px, 5vw, 52px)",
-          fontWeight: 400, fontStyle: "italic",
-          color: "#1a1a1a", marginBottom: "52px", lineHeight: 1.1,
-        }}>
-          your wardrobe, restyled
-        </h2>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 400, fontStyle: "italic", color: "#1a1a1a", marginBottom: "52px", lineHeight: 1.1 }}>your wardrobe, restyled</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
           {NAV_FEATURES.map(item => (
             <div key={item.label} className="restyle-feature-card">
-              <h3 style={{
-                fontFamily: "'Playfair Display', serif", fontStyle: "italic",
-                fontSize: "21px", color: item.color, marginBottom: "10px", fontWeight: 400,
-              }}>{item.label}</h3>
-              <p style={{
-                fontFamily: "'DM Mono', monospace", fontSize: "13px",
-                color: "#777", lineHeight: 1.7, marginBottom: "18px",
-              }}>{item.desc}</p>
-              <Link to={item.to} className="restyle-feature-link" style={{ color: item.color }}>
-                {item.cta}
-              </Link>
+              <h3 style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontSize: "21px", color: item.color, marginBottom: "10px", fontWeight: 400 }}>{item.label}</h3>
+              <p style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px", color: "#777", lineHeight: 1.7, marginBottom: "18px" }}>{item.desc}</p>
+              <Link to={item.to} className="restyle-feature-link" style={{ color: item.color }}>{item.cta}</Link>
             </div>
           ))}
         </div>
       </section>
 
-      {/* how it works */}
-      <section style={{
-        padding: "60px 48px 120px", maxWidth: "1100px", margin: "0 auto",
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: "80px", alignItems: "start",
-      }}>
+      <section style={{ padding: "60px 48px 120px", maxWidth: "1100px", margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "80px", alignItems: "start" }}>
         <div>
           <p style={{ fontFamily: "'DM Mono', monospace", fontSize: "11px", letterSpacing: "0.16em", color: "#bbb", textTransform: "uppercase", marginBottom: "14px" }}>how it works</p>
-          <h2 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "clamp(28px, 4vw, 44px)",
-            fontWeight: 400, fontStyle: "italic",
-            color: "#1a1a1a", lineHeight: 1.15,
-          }}>
-            four steps to<br />a better closet
-          </h2>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: "clamp(28px, 4vw, 44px)", fontWeight: 400, fontStyle: "italic", color: "#1a1a1a", lineHeight: 1.15 }}>four steps to<br />a better closet</h2>
         </div>
         <div>
           {STEPS.map((step) => (
             <div key={step.n} style={{ display: "flex", gap: "20px", alignItems: "flex-start", padding: "22px 0", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              <span style={{
-                fontFamily: "'Playfair Display', serif", fontStyle: "italic",
-                fontSize: "28px", color: "#E76F51", lineHeight: 1, minWidth: "44px", opacity: 0.55,
-              }}>{step.n}</span>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic", fontSize: "28px", color: "#E76F51", lineHeight: 1, minWidth: "44px", opacity: 0.55 }}>{step.n}</span>
               <div>
                 <h4 style={{ fontFamily: "'DM Mono', monospace", fontSize: "13px", fontWeight: 500, color: "#1a1a1a", marginBottom: "5px", letterSpacing: "0.04em" }}>{step.title}</h4>
                 <p style={{ fontFamily: "'DM Mono', monospace", fontSize: "12px", color: "#888", lineHeight: 1.75, margin: 0 }}>{step.desc}</p>
@@ -336,7 +271,6 @@ function Home() {
         </div>
       </section>
 
-      {/* status */}
       {!loading && stats && (
         <div style={{ textAlign: "center", padding: "0 0 60px", fontFamily: "'DM Mono', monospace", fontSize: "12px", color: "#2A9D8F", letterSpacing: "0.06em" }}>
           ✓ system connected

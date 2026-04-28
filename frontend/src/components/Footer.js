@@ -1,4 +1,4 @@
-/* Footer.js - simple footer with copyright and links. */
+/* Footer.js - simple footer with copyright */
 import React from 'react';
 import '../styles/Footer.css';
 
@@ -6,12 +6,7 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="container">
-        <p>&copy; 2026 Project Website. All rights reserved.</p>
-        <div className="footer-links">
-          <a href="#privacy">Privacy</a>
-          <a href="#terms">Terms</a>
-          <a href="#contact">Contact</a>
-        </div>
+        <p>&copy; 2026 Restyle. All rights reserved.</p>
       </div>
     </footer>
   );
