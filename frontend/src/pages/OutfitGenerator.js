@@ -17,7 +17,7 @@ function OutfitGenerator() {
     beamWidth: 5,
   });
 
-  const { saveOutfit } = useOutfit();
+  const { setOutfits, saveOutfit } = useOutfit();
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -35,6 +35,8 @@ function OutfitGenerator() {
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setResults(data);
+      setOutfits(data.outfits || []);
+      setSelectedFilters(0);
     } catch (error) {
       console.error('Error generating outfits:', error);
       alert('Failed to generate outfits');
