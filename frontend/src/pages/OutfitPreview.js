@@ -36,21 +36,6 @@ function OutfitModel({ top, bottom, shoes, outerwear }) {
   const cloned = useMemo(() => scene.clone(true), [scene]);
 
   useEffect(() => {
-    cloned.position.set(0, 0, 0);
-    cloned.rotation.set(0, 0, 0);
-    cloned.scale.set(1, 1, 1);
-    cloned.updateMatrixWorld(true);
-
-    const box = new THREE.Box3().setFromObject(cloned);
-    const size = box.getSize(new THREE.Vector3());
-    if (size.y > 0) {
-      cloned.scale.setScalar(2 / size.y);
-      cloned.updateMatrixWorld(true);
-      const b2 = new THREE.Box3().setFromObject(cloned);
-      const c2 = b2.getCenter(new THREE.Vector3());
-      cloned.position.set(-c2.x, -b2.min.y, -c2.z);
-    }
-
     cloned.traverse((child) => {
       if (!child.isMesh) return;
       const type = getMeshType(child.name);
@@ -163,7 +148,7 @@ function OutfitPreview() {
                 <Canvas shadows camera={{ position:[0, 0.915, 2.8], fov:50 }} gl={{ antialias:true }}>
                   <Scene items={outfit?.items ?? []} />
                   {/* Switch enablePan to true if you want to move it more freely, switch enableRotate to true if you want the model to rotate */}
-                  <OrbitControls enableZoom enablePan={false} enableRotate={false} minDistance={1.5} maxDistance={6} target={[0, 0.915, 0]} />
+                  <OrbitControls enableZoom enablePan={true} enableRotate={false} minDistance={1.5} maxDistance={6} target={[0, 0.915, 0]} />
                 </Canvas>
               </div>
             )}
