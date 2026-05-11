@@ -1,182 +1,64 @@
 # Restyle - Wardrobe Manager
 
-A simple, clean wardrobe management application built with React and Node.js. Manage your clothing inventory, analyze outfit compatibility, and get capsule wardrobe recommendations.
+Restyle is a wardrobe management and outfit planning application built with React, Node.js, Express, PostgreSQL, and an optional Python FastAPI clothing prediction service. Users can create an account, manage clothing items, upload clothing images, generate outfit combinations, save outfit ideas, and preview outfits visually.
 
 ## Features
 
-- **Wardrobe Inventory** - Track clothing items by category, color, and season
-- **Outfit Analysis** - See how items work together
-- **AI Outfit Generation** - Use beam search to create outfit combinations
-- **Capsule Recommendations** - Get suggestions for a minimal wardrobe
-- **Image Upload** - Add photos of your clothing items
+- **User Authentication** - Create an account, log in, and access user-specific wardrobe data
+- **Wardrobe Inventory** - Add, view, and delete clothing items with category, color, season, formality, and image data
+- **Image Upload** - Upload photos for clothing items
+- **AI-Assisted Scanning** - Suggest clothing attributes from uploaded images using an optional Python FastAPI prediction service
+- **Outfit Generation** - Generate outfit combinations using filters, heuristic scoring, and beam search
+- **Saved Outfits** - Save preferred outfit combinations for later use
+- **Outfit Preview** - Preview generated outfits visually
+- **Manual Entry Fallback** - Add clothing items manually if the scanning service is not running
 
 ## Tech Stack
 
 **Frontend:** React 18, React Router, Axios, CSS3  
-**Backend:** Node.js, Express, PostgreSQL, Sharp (image processing)
-
-## Quick Start
-
-### 1. Setup Database
-The app includes sample data for testing. When you start the backend, it will automatically create tables and insert sample clothing items.
-
-### 2. Start the Application
-
-**Terminal 1 - Backend:**
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-**Terminal 2 - Frontend:**
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### 3. Test the Outfit Generator
-- Go to the Inventory page
-- You'll see 10 sample clothing items
-- Click "Generate Outfits" to see AI-generated combinations
+**Backend:** Node.js, Express, PostgreSQL, Multer, Sharp  
+**Authentication:** JSON Web Tokens, bcryptjs  
+**Prediction Service:** Python, FastAPI, OpenCV, optional PyTorch/torchvision, optional CLIP  
+**3D Preview:** Three.js, React Three Fiber, Drei  
 
 ## Prerequisites
 
-- Node.js v14+
+Before running the project, install:
+
+- Node.js v18+
 - PostgreSQL
 - npm or yarn
+- Python 3.9+ if using the optional prediction service
 
 ## Quick Start
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/project-website.git
-cd project-website
+git clone https://github.com/jenjentran15/Restyle.git
+cd Restyle
 ```
 
-### 2. Setup Environment Variables
+### 2. Create the Database
 
 ```bash
-cp .env.example .env
+psql -U postgres -c "CREATE DATABASE wardrobe_db;"
 ```
 
-Edit `.env` with your configuration values.
+The backend will initialize the required tables when the server starts.
 
-### 3. Install Frontend Dependencies
+### 3. Configure Environment Variables
 
-```bash
-cd frontend
-npm install
-```
+Create a `.env` file inside the `backend` folder:
 
-### 4. Install Backend Dependencies
-
-```bash
-cd ../backend
-npm install
-```
-
-### 5. Setup Python Environment (prediction service)
-
-The clothing prediction service is a FastAPI app located at `backend/clothing_predict_server.py`.
-
-```bash
-# from the repo root
-cd backend
-# optional: create and activate a virtual environment
-python3 -m venv venv
-source venv/bin/activate   # macOS / Linux
-# venv\Scripts\activate   # Windows (PowerShell)
-
-pip install -r requirements.txt
-
-# Optional: install CPU PyTorch for ImageNet model (no GPU/triton required)
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# Start the predictor (FastAPI on port 8000)
-python3 clothing_predict_server.py
-```
-
-## Running the Application (local)
-
-Run each block in its own terminal.
-
-### Terminal 1 — Frontend (Port 3000)
-```bash
-cd frontend
-npm install
-npm start
-```
-
-### Terminal 2 — Backend Node API (Port 5000)
 ```bash
 cd backend
-npm install
-npm run dev
-# server.js listens on PORT (default 5000)
+touch .env
 ```
 
-### Terminal 3 — Python predictor (FastAPI, Port 8000)
-```bash
-cd backend
-source venv/bin/activate   # if you created one earlier
-python3 clothing_predict_server.py
-```
-
-The frontend is available at `http://localhost:3000` and the backend API at `http://localhost:5000`.
-The prediction service runs at `http://127.0.0.1:8000/predict-clothing` by default.
-
-Quick health/debug endpoints:
-
-```bash
-# Node backend health
-curl http://localhost:5000/api/health
-
-# Python predictor debug/status
-curl http://127.0.0.1:8000/debug/status
-```
-
-Troubleshooting notes:
-- If CLIP fails to import with a Triton error (`No module named 'triton.backends'`), uninstall Triton in your Python environment:
-
-```bash
-pip3 uninstall triton -y
-```
-
-- If you only need basic ML without CLIP, installing CPU PyTorch (above) gives ImageNet-based predictions without GPU/triton complexities.
-
-## API Endpoints
-
-### Backend (Node.js)
-
-**Clothing Items:**
-- `GET /api/clothing` - Get all clothing items
-- `POST /api/clothing` - Add new clothing item
-- `GET /api/clothing/:id` - Get specific item details
-- `DELETE /api/clothing/:id` - Remove clothing item
-
-**Outfit Analysis:**
-- `POST /api/analyze/compatibility` - Get outfit compatibility analysis
-- `GET /api/analyze/utilization` - Get item utilization metrics
-
-**Capsule Wardrobe:**
-- `POST /api/capsule/recommendations` - Get capsule wardrobe suggestions
-- `GET /api/capsule/:id` - Get generated capsule details
-
-**System:**
-- `GET /api/health` - Health check endpoint
-
-## Environment Variables
-
-Create a `.env` file in the root directory:
+Add the following values and update them for your local setup:
 
 ```env
-# Frontend
-REACT_APP_API_URL=http://localhost:5000
-
-# Backend
 PORT=5000
 NODE_ENV=development
 DB_USER=postgres
@@ -185,74 +67,169 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=wardrobe_db
 CORS_ORIGIN=http://localhost:3000
+JWT_SECRET=your_jwt_secret
 
-# Python Engine
-OPENAI_API_KEY=your_openai_api_key
-PYTHON_ENGINE_PORT=5001
-PYTORCH_MODEL_PATH=./models
+PREDICT_SERVICE_URL=http://127.0.0.1:8000
+PREDICT_SERVICE_TIMEOUT_MS=30000
 ```
 
-## Database Setup
+### 4. Install Backend Dependencies
 
-### PostgreSQL
-
-1. Create a new database:
-```bash
-psql -U postgres -c "CREATE DATABASE wardrobe_db;"
-```
-
-2. Update `.env` with your PostgreSQL credentials
-
-3. The backend will initialize the required tables on first run
-
-### Database Tables
-- `clothing_items` - Stores user clothing inventory
-- `outfit_compatibility` - Stores outfit combination rules
-- `capsule_recommendations` - Stores generated capsule wardrobes
-- `user_preferences` - Stores user constraints and preferences
-
-## Deployment
-
-### Deploy to Vercel
-
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Deploy frontend and backend separately
-
-**Frontend:**
-```bash
-cd frontend
-npm run build
-vercel deploy
-```
-
-**Backend:**
 ```bash
 cd backend
-vercel deploy
+npm install
 ```
 
-## Contributing
+### 5. Install Frontend Dependencies
 
-Please see [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines on how to contribute to this project.
+Open a new terminal from the project root:
 
-## License
+```bash
+cd frontend
+npm install
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+If the outfit preview dependencies are missing, install them:
 
-## Support
+```bash
+npm install three @react-three/fiber @react-three/drei
+```
 
-For issues, questions, or suggestions, please open an issue on GitHub.
+### 6. Optional: Setup the Python Prediction Service
 
-## Useful Links
+The clothing prediction service is located at `backend/clothing_predict_server.py`.
 
-- [React Documentation](https://react.dev)
-- [Node.js Documentation](https://nodejs.org/docs)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs)
-- [PyTorch Documentation](https://pytorch.org/docs)
-- [Vercel Documentation](https://vercel.com/docs)
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate   # macOS / Linux
+# venv\Scripts\activate    # Windows PowerShell
 
----
+pip install -r requirements.txt
+```
 
-**Created**: February 2026
-**Updated**: February 12, 2026
+Optional CPU PyTorch install:
+
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+## Running the Application
+
+Run each service in a separate terminal.
+
+### Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+Backend runs at:
+
+```bash
+http://localhost:5000
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm start
+```
+
+Frontend runs at:
+
+```bash
+http://localhost:3000
+```
+
+### Optional Prediction Service
+
+```bash
+cd backend
+source venv/bin/activate
+python3 clothing_predict_server.py
+```
+
+Prediction service runs at:
+
+```bash
+http://127.0.0.1:8000
+```
+
+## Testing the Application
+
+1. Open `http://localhost:3000`
+2. Create an account or log in
+3. Add clothing items manually or upload an image
+4. Use the scan feature if the prediction service is running
+5. Generate outfit combinations
+6. Save preferred outfits
+7. Open the outfit preview page
+
+## API Endpoints
+
+### Authentication
+
+- `POST /api/auth/signup` - Create a new user account
+- `POST /api/auth/login` - Log in and receive an authentication token
+
+### Clothing Items
+
+- `GET /api/clothing` - Get the logged-in user's clothing items
+- `GET /api/clothing/:id` - Get a specific clothing item
+- `POST /api/clothing` - Add a new clothing item
+- `DELETE /api/clothing/:id` - Delete a clothing item
+
+### Image Upload and Scanning
+
+- `POST /api/upload-clothing` - Upload and save a clothing image
+- `POST /api/predict-clothing` - Send an uploaded image to the Python prediction service and return suggested attributes
+
+### Outfit Generation
+
+- `POST /api/outfits/generate` - Generate outfit combinations using wardrobe items, filters, scoring, and beam search
+
+### System
+
+- `GET /api/health` - Health check endpoint
+
+## Database Tables
+
+- `users` - Stores user account information and hashed passwords
+- `clothing_items` - Stores user clothing inventory, attributes, and image paths
+
+## Project Structure
+
+## Project Structure
+
+```bash
+Restyle/
+├── backend/
+│   ├── config/
+│   ├── clothingPrediction.js
+│   ├── clothing_predict_server.py
+│   ├── outfitGenerator.js
+│   ├── package.json
+│   └── server.js
+├── frontend/
+│   ├── public/
+│   │   ├── models/
+│   │   └── index.html
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── content/
+│   │   ├── pages/
+│   │   ├── styles/
+│   │   ├── App.js
+│   │   └── index.js
+│   └── package.json
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
+
+**Created:** February 2026  
+**Updated:** May 2026
